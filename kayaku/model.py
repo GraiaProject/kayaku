@@ -7,7 +7,7 @@ _identified_models: "WeakVDict[str, Type[ConfigModel]]" = WeakVDict()
 
 ModifyPolicy = Literal["allow", "protected", "readonly"]
 
-_last_access: List[str] = []
+_get_attr_parts: List[str] = []
 
 
 class ConfigModel(BaseModel):
@@ -36,6 +36,17 @@ class ConfigModel(BaseModel):
                     "which is not allowed in nested ConfigModel."
                 )
 
+    async def apply_modifies(self) -> None:
+        from kayaku.provider import _model_registry, modify_context
+
+        ctx = modify_context.get()
+        if self.__identity__ not in ctx.content:
+            return
+        content = ctx.content[self.__identity__]
+        await _model_registry[self.__identity__].apply_modifies(
+            self.__identity__, content
+        )
+
     if not TYPE_CHECKING:
 
         def __getattribute__(self, __name: str):
@@ -45,10 +56,10 @@ class ConfigModel(BaseModel):
             if modify_context.get(None) is None:
                 return get(__name)
             if type(self).__identity__:
-                _last_access.clear()
-                _last_access.append(type(self).__identity__)
+                _get_attr_parts.clear()
+                _get_attr_parts.append(type(self).__identity__)
             if __name in type(self).__fields__:
-                _last_access.append(__name)
+                _get_attr_parts.append(__name)
             return get(__name)
 
         def __setattr__(self, name: str, value: Any):
@@ -63,9 +74,9 @@ class ConfigModel(BaseModel):
             elif self.__policy__ == "protected" and not ctx.unsafe:
                 raise RuntimeError(f"You can't setattr on protected model {self!r}")
             content: Dict[str, Any] = ctx.content
-            for access_key in _last_access:
+            for access_key in _get_attr_parts:
                 content = content.setdefault(access_key, {})
             content[name] = value
-            _last_access.clear()
+            _get_attr_parts.clear()
             ctx.synced = False
             return super().__setattr__(name, value)
