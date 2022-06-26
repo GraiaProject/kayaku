@@ -40,8 +40,9 @@ class BaseProvider(ABC):
     def fetch(self, model: Type[T_Model]) -> T_Model:
         ...
 
+    @property
     @abstractmethod
-    def model_identities(self) -> AbstractSet[str]:
+    def supported_identities(self) -> AbstractSet[str]:
         ...
 
     async def apply_modifies(self, identity: str, data: Dict[str, Any]) -> None:
@@ -86,7 +87,7 @@ def add_provider(
             f"{provider_id!r} is already taken by {_provider_registry[provider_id]}"
         )
     _provider_registry[provider_id] = provider_cls
-    for identity in provider.model_identities():
+    for identity in provider.supported_identities:
         _model_registry[identity] = provider
 
 
