@@ -4,10 +4,11 @@ except ImportError:
     import tomli as tomllib
 
 from pathlib import Path
+from typing import ClassVar
 
 from kayaku.provider import BaseProvider
 
 
 class TomlReadOnlyProvider(BaseProvider):
-    # TODO
+    identity: ClassVar[str] = "toml"
     ...
