@@ -121,10 +121,6 @@ class ModifyContext:
 modify_context: ContextVar[ModifyContext] = ContextVar("modify_context")
 
 
-async def apply_modifies() -> None:
-    ctx = modify_context.get()
-
-
 class modify(AbstractAsyncContextManager, AbstractContextManager):
     def __init__(self, *, unsafe: bool = False) -> None:
         self.unsafe: bool = unsafe
