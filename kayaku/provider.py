@@ -12,8 +12,6 @@ from typing import (
     ClassVar,
     Dict,
     List,
-    MutableMapping,
-    MutableSet,
     Optional,
     Set,
     Tuple,
@@ -22,7 +20,6 @@ from typing import (
     Union,
     overload,
 )
-from weakref import WeakSet, WeakValueDictionary
 
 from importlib_metadata import entry_points
 from typing_extensions import Required, TypedDict
@@ -41,15 +38,20 @@ class AbstractProvider(ABC):
     ]  # Pity that we can't just declare it's Iterable[str] but *not* str
     """Tags of the Provider class, used to distinguish from other providers."""
 
-    config: ClassVar[Optional[Type[ConfigModel]]] = None
-    """Config model, if the provider needs configuration (sync it with __init__'s sig)"""
+    config_cls: ClassVar[Optional[Type[ConfigModel]]] = None
+
+    def __init__(self, config: Optional[ConfigModel]) -> None:
+        self.config = config
 
     @staticmethod
     def available() -> bool:
         return True
 
     @abstractmethod
-    def __init__(self, config: Optional[ConfigModel]) -> None:
+    async def load(self) -> None:
+        """Reload the data entirely.
+        Will always be called before `fetch`.
+        """
         ...
 
     @abstractmethod
@@ -58,28 +60,25 @@ class AbstractProvider(ABC):
         ...
 
     @abstractmethod
-    async def provided_identities(self) -> AbstractSet[str]:
-        """The identities of the models that this provider supports."""
+    async def provided_identifiers(self) -> AbstractSet[str]:
+        """The identifiers of the models that this provider supports."""
         ...
 
-    async def apply(self, identity: str, data: Dict[str, Any]) -> None:
-        """Apply the modifies from model identity."""
+    async def apply(self, identifier: str, data: Dict[str, Any]) -> None:
+        """Apply the modifies from model identifier."""
         raise NotImplementedError(f"{self.__class__!r} only supports `fetch`.")
 
 
-_model_registry: MutableMapping[str, AbstractProvider] = WeakValueDictionary()
-_provider_tag_registry: Dict[str, MutableSet[Type[AbstractProvider]]] = {}
-_registered_providers: MutableSet[Type[AbstractProvider]] = WeakSet()
+_model_registry: Dict[str, AbstractProvider] = {}
+_provider_tag_registry: Dict[str, Set[Type[AbstractProvider]]] = {}
 
 
 def add_provider_cls(cls: Type[AbstractProvider]) -> None:
     if not cls.available():
         raise ValueError(f"{cls!r} is not available.")
-    if cls in _registered_providers:
-        return
     provider_tags: List[str] = list(cls.tags)
     for tag in provider_tags:
-        s = _provider_tag_registry.setdefault(tag, WeakSet())
+        s = _provider_tag_registry.setdefault(tag, set())
         s.add(cls)
 
 
@@ -94,6 +93,19 @@ def get_provider_cls(tags: List[str]) -> Type[AbstractProvider]:
     if len(candidate) > 1:
         raise ValueError(f"Ambiguous candidates for {tags!r}: {candidate!r}")
     return candidate.pop()
+
+
+async def _update_provider(provider: AbstractProvider) -> None:
+    global _model_registry
+    _model_registry = {k: v for k, v in _model_registry.items() if v is provider}
+    # pop provider-provided identifiers
+    await provider.load()
+    for identifier in await provider.provided_identifiers():
+        if identifier in _model_registry:
+            raise ValueError(
+                f"{identifier!r} is already provided by {_model_registry[identifier]}"
+            )
+        _model_registry[identifier] = provider
 
 
 @overload
@@ -116,18 +128,13 @@ async def add_provider(
     cls = provider if isinstance(provider, type) else provider.__class__
     add_provider_cls(cls)
     if not isinstance(provider, AbstractProvider):
-        if provider.config:
+        if provider.config_cls is not None:
             provider = provider(
-                provider.config(**config) if isinstance(config, dict) else config
+                provider.config_cls(**config) if isinstance(config, dict) else config
             )
         else:
             provider = provider(None)
-    for identity in await provider.provided_identities():
-        if identity in _model_registry:
-            raise ValueError(
-                f"{identity!r} is already provided by {_model_registry[identity]}"
-            )
-        _model_registry[identity] = provider
+    await _update_provider(provider)
 
 
 class ProviderScanConfig(TypedDict):
@@ -142,21 +149,10 @@ async def scan_providers(configs: List[ProviderScanConfig]) -> None:
             add_provider_cls(cls)
     for config in configs:
         cls = get_provider_cls(config["tags"])
-        if not cls.config:
+        if cls.config_cls is None:
             await add_provider(cls(None))
         for provider_config in config["configs"]:
             await add_provider(cls, provider_config)
-
-
-async def create(model: Type[T_Model]) -> T_Model:
-    if not model.__identity__:
-        raise ValueError(
-            f"{model!r} is not creatable as it doesn't have `identity` to lookup."
-        )
-    identity: str = model.__identity__
-    if identity not in _model_registry:
-        raise ValueError(f"No provider supports creating {model!r}")
-    return await _model_registry[identity].fetch(model)
 
 
 @dataclass
@@ -185,8 +181,8 @@ class modify(AbstractAsyncContextManager, AbstractContextManager):
         ctx = modify_context.get()
         if ctx.content:
             await asyncio.wait(
-                asyncio.create_task(_model_registry[identity].apply(identity, data))
-                for identity, data in ctx.content.items()
+                asyncio.create_task(_model_registry[identifier].apply(identifier, data))
+                for identifier, data in ctx.content.items()
             )
         ctx.content = {}
         return self.__exit__(*_)

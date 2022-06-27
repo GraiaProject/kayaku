@@ -1,18 +1,26 @@
-from kayaku.model import ConfigModel
-from kayaku.provider import modify, modify_context
+import asyncio
+
+from kayaku import ConfigModel, scan_providers
+from kayaku.provider import ProviderScanConfig
 
 
-class C(ConfigModel, policy="protected"):
-    v: int
+class Project(ConfigModel, identifier="project"):
+    class Config:
+        extra = "allow"
 
 
-class M(ConfigModel, identity="m"):
-    c: C
+async def main():
+    await scan_providers(
+        [
+            ProviderScanConfig(
+                tags=["toml"],
+                configs=[
+                    {"path": "./pyproject.toml", "filtering": (True, ["project"])}
+                ],
+            )
+        ]
+    )
+    print(await Project.create())
 
 
-m = M(c=C(v=5))
-
-with modify():
-    m.c.v = 4
-    print(modify_context.get())
-# RuntimeError is fine, as there's no Provider
+asyncio.run(main())
