@@ -44,6 +44,10 @@ class AbstractProvider(ABC):
     config: ClassVar[Optional[Type[ConfigModel]]] = None
     """Config model, if the provider needs configuration (sync it with __init__'s sig)"""
 
+    @staticmethod
+    def available() -> bool:
+        return True
+
     @abstractmethod
     def __init__(self, config: Optional[ConfigModel]) -> None:
         ...
@@ -69,6 +73,8 @@ _registered_providers: MutableSet[Type[AbstractProvider]] = WeakSet()
 
 
 def add_provider_cls(cls: Type[AbstractProvider]) -> None:
+    if not cls.available():
+        raise ValueError(f"{cls!r} is not available.")
     if cls in _registered_providers:
         return
     provider_tags: List[str] = list(cls.tags)
@@ -132,7 +138,8 @@ class ProviderScanConfig(TypedDict):
 async def scan_providers(configs: List[ProviderScanConfig]) -> None:
     for entry_point in entry_points(group="kayaku.providers"):
         cls: Type[AbstractProvider] = entry_point.load()
-        add_provider_cls(cls)
+        if cls.available():
+            add_provider_cls(cls)
     for config in configs:
         cls = get_provider_cls(config["tags"])
         if not cls.config:

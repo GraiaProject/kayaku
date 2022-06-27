@@ -45,13 +45,33 @@ class ConfigModel(BaseModel):
         content = ctx.content[self.__identity__]
         await _model_registry[self.__identity__].apply(self.__identity__, content)
 
-    if not TYPE_CHECKING:
+    def __setattr__(self, name: str, value: Any):
+        from kayaku.provider import modify_context
+
+        try:
+            ctx = modify_context.get()
+        except LookupError as e:
+            raise LookupError("Use `with kayaku.modify()` for modification") from e
+        if self.__policy__ == "readonly":
+            raise RuntimeError(f"You can't setattr on readonly model {self!r}")
+        elif self.__policy__ == "protected" and not ctx.unsafe:
+            raise RuntimeError(f"You can't setattr on protected model {self!r}")
+        content: Dict[str, Any] = ctx.content
+        for access_key in _get_attr_parts:
+            content = content.setdefault(access_key, {})
+        content[name] = value
+        _get_attr_parts.clear()
+        return super().__setattr__(name, value)
+
+    if not TYPE_CHECKING:  # avoid being recognized as fallback
 
         def __getattribute__(self, __name: str):
             from kayaku.provider import modify_context
 
             get = super().__getattribute__
-            if modify_context.get(None) is None:
+            if (
+                modify_context.get(None) is None
+            ):  # a fast route, don't save when not in modify ctx
                 return get(__name)
             if type(self).__identity__:
                 _get_attr_parts.clear()
@@ -59,22 +79,3 @@ class ConfigModel(BaseModel):
             if __name in type(self).__fields__:
                 _get_attr_parts.append(__name)
             return get(__name)
-
-        def __setattr__(self, name: str, value: Any):
-            from kayaku.provider import modify_context
-
-            try:
-                ctx = modify_context.get()
-            except LookupError as e:
-                raise LookupError("Use `with kayaku.modify()` for modification") from e
-            if self.__policy__ == "readonly":
-                raise RuntimeError(f"You can't setattr on readonly model {self!r}")
-            elif self.__policy__ == "protected" and not ctx.unsafe:
-                raise RuntimeError(f"You can't setattr on protected model {self!r}")
-            content: Dict[str, Any] = ctx.content
-            for access_key in _get_attr_parts:
-                content = content.setdefault(access_key, {})
-            content[name] = value
-            _get_attr_parts.clear()
-            ctx.synced = False
-            return super().__setattr__(name, value)

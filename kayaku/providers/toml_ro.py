@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Any, Dict, Set
 
-import tomli
+from creart import exists_module
 
 from kayaku.model import ConfigModel
 from kayaku.provider import AbstractProvider
@@ -19,9 +19,17 @@ class TOMLReadOnlyProvider(AbstractProvider):
     config = TOMLReadOnlyProviderConfig
 
     def __init__(self, config: TOMLReadOnlyProviderConfig) -> None:
+        if exists_module("tomllib"):
+            import tomllib as tomli  # type: ignore
+        else:
+            import tomli
         self.data: Dict[str, Any] = tomli.loads(
             config.path.read_text(encoding=config.encoding)
         )
+
+    @staticmethod
+    def available() -> bool:
+        return exists_module("tomllib") or exists_module("tomli")
 
     async def provided_identities(self) -> Set[str]:
         return set(self.data)
