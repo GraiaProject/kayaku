@@ -45,7 +45,7 @@ class AbstractProvider(ABC):
     """Config model, if the provider needs configuration (sync it with __init__'s sig)"""
 
     @abstractmethod
-    def __init__(self, config: Optional[ConfigModel] = None) -> None:
+    def __init__(self, config: Optional[ConfigModel]) -> None:
         ...
 
     @abstractmethod
