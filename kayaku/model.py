@@ -43,9 +43,7 @@ class ConfigModel(BaseModel):
         if self.__identity__ not in ctx.content:
             return
         content = ctx.content[self.__identity__]
-        await _model_registry[self.__identity__].apply_modifies(
-            self.__identity__, content
-        )
+        await _model_registry[self.__identity__].apply(self.__identity__, content)
 
     if not TYPE_CHECKING:
 

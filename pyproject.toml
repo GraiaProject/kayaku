@@ -1,28 +1,36 @@
-[tool.poetry]
+[project]
+# PEP 621 project metadata
+# See https://www.python.org/dev/peps/pep-0621/
+authors = [
+    {name = "BlueGlassBlock", email = "blueglassblock@outlook.com"},
+]
+license = {text = "MIT"}
+requires-python = ">=3.8,<4.0"
+dependencies = [
+    "pydantic<2.0.0,>=1.8.0",
+    "creart<1.0.0,>=0.2.1",
+    "importlib-metadata>=3.6",
+]
 name = "kayaku"
 version = "0.0.1"
 description = "An powerful and flexible configuration solution."
-authors = ["BlueGlassBlock <blueglassblock@outlook.com>"]
-license = "MIT"
-include = ["src/kayaku"]
 readme = "README.md"
 classifiers = [
-    "Typing :: Typed",
-    "Development Status :: 4 - Beta",
-    "Operating System :: OS Independent",
+"Typing :: Typed",
+"Development Status :: 4 - Beta",
+"Operating System :: OS Independent"
 ]
 
+[project.urls]
 
-[tool.poetry.dependencies]
-python = "^3.8"
-pydantic = "^1.8.0"
-creart = "^0.2.1"
-
-[tool.poetry.dev-dependencies]
-black = "^22.3.0"
-isort = "^5.10.1"
-tomli = "^2.0.1"
-
+[tool.pdm]
+includes = ["src/kayaku"]
+[tool.pdm.dev-dependencies]
+dev = [
+    "black<23.0.0,>=22.3.0",
+    "isort<6.0.0,>=5.10.1",
+    "tomli<3.0.0,>=2.0.1",
+]
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["pdm-pep517"]
+build-backend = "pdm.pep517.api"

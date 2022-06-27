@@ -6,9 +6,9 @@ except ImportError:
 from pathlib import Path
 from typing import ClassVar
 
-from kayaku.provider import BaseProvider
+from kayaku.provider import AbstractProvider
 
 
-class TomlReadOnlyProvider(BaseProvider):
-    identity: ClassVar[str] = "toml"
+class TomlReadOnlyProvider(AbstractProvider):
+    tags = ["file", "toml", "readonly"]
     ...
