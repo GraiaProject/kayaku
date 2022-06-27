@@ -1,10 +1,14 @@
 import asyncio
 
-from kayaku import ConfigModel, scan_providers
+from kayaku import ConfigModel, modify, scan_providers
 from kayaku.provider import ProviderScanConfig
 
 
 class Project(ConfigModel, identifier="project"):
+    name: str
+    authors: list
+    urls: dict
+
     class Config:
         extra = "allow"
 
@@ -13,14 +17,19 @@ async def main():
     await scan_providers(
         [
             ProviderScanConfig(
-                tags=["toml"],
+                tags=["toml", "write"],
                 configs=[
-                    {"path": "./pyproject.toml", "filtering": (True, ["project"])}
+                    {"path": "./playground.toml", "filtering": (True, ["project"])}
                 ],
             )
         ]
     )
-    print(await Project.create())
+    p = await Project.create()
+    print(p)
+    async with modify():
+        p.name = "playground"
+        p.authors.append({"name": "GraiaCommunity", "email": "governance@graiax.cn"})
+    print(p)
 
 
 asyncio.run(main())

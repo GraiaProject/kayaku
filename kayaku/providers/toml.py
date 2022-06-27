@@ -1,14 +1,19 @@
-from pathlib import Path
-from typing import Any, Dict, List, Set, Tuple
+from __future__ import annotations
 
-from creart import exists_module
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Dict, List, Set
+
 from pydantic import Field
 
 from kayaku.model import ConfigModel
 from kayaku.provider import AbstractProvider
+from kayaku.util import exists_module
+
+if TYPE_CHECKING:
+    from tomlkit.container import Container
 
 
-class _TOMLConfig(ConfigModel, identifier="kayaku.toml_ro", policy="readonly"):
+class _TOMLConfig(ConfigModel, identifier="kayaku.toml", policy="readonly"):
     path: Path
     """The path of the TOML file."""
 
@@ -63,7 +68,7 @@ class _TOMLConfig(ConfigModel, identifier="kayaku.toml_ro", policy="readonly"):
 
 
 class TOMLReadOnlyProvider(AbstractProvider):
-    tags = ["file", "toml", "readonly"]
+    tags = ["file", "toml", "read", "readonly"]
     config_cls = _TOMLConfig
     data: Dict[str, Any]
 
@@ -99,3 +104,58 @@ class TOMLReadOnlyProvider(AbstractProvider):
         if not model.__identifier__:
             raise ValueError(f"{model!r} doesn't have identifier!")
         return model.parse_obj(self.data[model.__identifier__])
+
+
+class TOMLReadWriteProvider(AbstractProvider):
+    tags = ["file", "toml", "read", "write"]
+    config_cls = _TOMLConfig
+    data: Dict[str, Any]
+
+    def __init__(self, config: _TOMLConfig) -> None:
+        self.config: _TOMLConfig = config
+
+    @staticmethod
+    def available() -> bool:
+        return exists_module("tomlkit")
+
+    def load_container(self, container: Container) -> None:
+        data = container.copy()
+        for key in self.config.identifier_root:
+            data = data.get(key, {})
+        if self.config.filter_mode:
+            data = {k: v for k, v in self.data.items() if k in self.config.filter_keys}
+        else:
+            for k in self.config.filter_keys:
+                data.pop(k)
+        self.data = data
+
+    async def load(self) -> None:
+        import tomlkit.api
+        import tomlkit.toml_document
+
+        self.document: tomlkit.toml_document.TOMLDocument = tomlkit.api.loads(
+            self.config.path.read_text(encoding=self.config.encoding)
+        )
+        self.load_container(self.document)
+
+    async def provided_identifiers(self) -> Set[str]:
+        return set(self.data)
+
+    async def fetch(self, model):
+        if not model.__identifier__:
+            raise ValueError(f"{model!r} doesn't have identifier!")
+        return model.parse_obj(self.data[model.__identifier__])
+
+    async def apply(self, identifier: str, data: Dict[str, Any]) -> None:
+        import tomlkit.api
+        from tomlkit.container import Container
+
+        container = self.document
+        for key in self.config.identifier_root:
+            container = container.get(key, Container())
+        container = container.setdefault(identifier, Container())
+        container.update(data)
+        self.config.path.write_text(
+            tomlkit.api.dumps(self.document), encoding=self.config.encoding
+        )
+        self.load_container(self.document)

@@ -181,8 +181,12 @@ class modify(AbstractAsyncContextManager, AbstractContextManager):
         ctx = modify_context.get()
         if ctx.content:
             await asyncio.wait(
-                asyncio.create_task(_model_registry[identifier].apply(identifier, data))
-                for identifier, data in ctx.content.items()
+                [
+                    asyncio.create_task(
+                        _model_registry[identifier].apply(identifier, data)
+                    )
+                    for identifier, data in ctx.content.items()
+                ]
             )
         ctx.content = {}
         return self.__exit__(*_)
