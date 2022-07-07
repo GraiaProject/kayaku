@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Literal, Optional, Type
 from weakref import WeakValueDictionary as WeakVDict
 
-from pydantic import BaseConfig, BaseModel
+from pydantic import BaseModel
 from typing_extensions import Self
 
 _identified_models: "WeakVDict[str, Type[ConfigModel]]" = WeakVDict()

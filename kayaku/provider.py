@@ -9,8 +9,10 @@ from typing import (
     TYPE_CHECKING,
     AbstractSet,
     Any,
+    Awaitable,
     ClassVar,
     Dict,
+    Generator,
     List,
     Optional,
     Set,
@@ -67,6 +69,35 @@ class AbstractProvider(ABC):
     async def apply(self, identifier: str, data: Dict[str, Any]) -> None:
         """Apply the modifies from model identifier."""
         raise NotImplementedError(f"{self.__class__!r} only supports `fetch`.")
+
+
+class KayakuProvider(ABC):
+    @abstractmethod
+    def request(
+        self, model: type[T_Model], flush: bool = False
+    ) -> RequestTicket[T_Model]:
+        ...
+
+    @abstractmethod
+    async def raw(self, domain: str) -> dict[str, Any]:
+        ...
+
+    async def fetch(self, model: type[T_Model]) -> T_Model:
+        assert model.__identifier__  # TODO: Use `domain`
+        return model.parse_obj(await self.raw(model.__identifier__))
+
+    @abstractmethod
+    async def domains(self) -> list[str]:
+        ...
+
+    async def has_domains(self, domain: str) -> bool:
+        return domain in await self.domains()
+
+    async def write(self, data: dict[str, Any]) -> None | RequestTicket[None]:
+        raise NotImplementedError(f"{self.__class__!r} only supports read.")
+
+    async def clear(self, model: type[ConfigModel]) -> None:
+        raise NotImplemented(f"{self.__class__!r} doesn't support clear.")
 
 
 _model_registry: Dict[str, AbstractProvider] = {}
@@ -200,3 +231,24 @@ class modify(AbstractAsyncContextManager, AbstractContextManager):
         modify_context.reset(self.modify_token)
         self.modify_token = None
         return False
+
+
+T = TypeVar("T")
+
+
+class RequestTicket(Awaitable[T]):
+    def __init__(self, flush: bool) -> None:
+        self.flush = flush
+        self.fut: asyncio.Future[T] = asyncio.get_running_loop().create_future()
+
+    @property
+    def available(self) -> bool:
+        return self.fut.done() and not self.fut.exception()
+
+    def __await__(self) -> Generator[Any, None, T]:
+        return self.fut.__await__()
+
+    def unwrap(self: "RequestTicket[T]") -> T:
+        if self.fut.done():
+            return self.fut.result()
+        raise RuntimeError("Config is not ready")
