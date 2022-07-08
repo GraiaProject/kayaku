@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 from abc import ABC, abstractmethod
 from contextlib import AbstractAsyncContextManager, AbstractContextManager
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING,
-    AbstractSet,
     Any,
     Awaitable,
+    Callable,
     ClassVar,
     Dict,
     Generator,
@@ -24,7 +25,7 @@ from typing import (
 )
 
 from importlib_metadata import entry_points
-from typing_extensions import Required, TypedDict
+from typing_extensions import Required, Self, TypedDict
 
 if TYPE_CHECKING:
     from kayaku.model import ConfigModel
@@ -32,46 +33,14 @@ if TYPE_CHECKING:
     T_Model = TypeVar("T_Model", bound=ConfigModel)
 
 
-class AbstractProvider(ABC):
-    """Abstract Provider for configurations."""
-
-    tags: ClassVar[
-        Union[List[str], AbstractSet[str], Tuple[str, ...]]
-    ]  # Pity that we can't just declare it's Iterable[str] but *not* str
-    """Tags of the Provider class, used to distinguish from other providers."""
-
-    config_cls: ClassVar[Optional[Type[ConfigModel]]] = None
-
-    def __init__(self, config: Optional[ConfigModel]) -> None:
-        self.config = config
-
-    @staticmethod
-    def available() -> bool:
-        return True
-
-    @abstractmethod
-    async def load(self) -> None:
-        """Reload the data entirely.
-        Will always be called before `fetch`.
-        """
-        ...
-
-    @abstractmethod
-    async def fetch(self, model: Type[T_Model]) -> T_Model:
-        """The actual method to generate model from provider's data."""
-        ...
-
-    @abstractmethod
-    async def provided_identifiers(self) -> AbstractSet[str]:
-        """The identifiers of the models that this provider supports."""
-        ...
-
-    async def apply(self, identifier: str, data: Dict[str, Any]) -> None:
-        """Apply the modifies from model identifier."""
-        raise NotImplementedError(f"{self.__class__!r} only supports `fetch`.")
-
-
 class KayakuProvider(ABC):
+    tags: ClassVar[Dict[str, int]]
+    config_model: ClassVar[Type[ConfigModel]]
+
+    @abstractmethod
+    def __init__(self, model: ConfigModel) -> None:
+        ...
+
     @abstractmethod
     def request(
         self, model: type[T_Model], flush: bool = False
@@ -83,28 +52,54 @@ class KayakuProvider(ABC):
         ...
 
     async def fetch(self, model: type[T_Model]) -> T_Model:
-        assert model.__identifier__  # TODO: Use `domain`
-        return model.parse_obj(await self.raw(model.__identifier__))
+        assert model.__domain__
+        return model.parse_obj(await self.raw(model.__domain__))
 
     @abstractmethod
     async def domains(self) -> list[str]:
         ...
 
+    @staticmethod
+    def available() -> bool:
+        return True
+
     async def has_domains(self, domain: str) -> bool:
         return domain in await self.domains()
 
-    async def write(self, data: dict[str, Any]) -> None | RequestTicket[None]:
+    async def write(self, domain: str, data: dict[str, Any]) -> None:
         raise NotImplementedError(f"{self.__class__!r} only supports read.")
 
-    async def clear(self, model: type[ConfigModel]) -> None:
-        raise NotImplemented(f"{self.__class__!r} doesn't support clear.")
+    @staticmethod
+    def wrap_request(*, cache: bool):
+        def wrapper(
+            func: Callable[[Self, type[T_Model], bool], RequestTicket[T_Model]]
+        ) -> Callable[[Self, type[T_Model], bool], RequestTicket[T_Model]]:
+            @functools.wraps(func)
+            def inner(self: Self, model: type[T_Model], flush: bool = False):
+                if not model.__domain__:
+                    raise ValueError(f"{model!r} doesn't have domain!")
+                if model.__domain__ in _model_cache:
+                    if not flush:
+                        ticket = RequestTicket(flush)
+                        ticket.fut.set_result(_model_cache[model.__domain__])
+                        return ticket
+                    del _model_cache[model.__domain__]
+                ticket = func(self, model, flush)
+                if cache:
+                    _model_cache[model.__domain__] = ticket.fut.result()
+                return ticket
+
+            return inner
+
+        return wrapper
 
 
-_model_registry: Dict[str, AbstractProvider] = {}
-_provider_tag_registry: Dict[str, Set[Type[AbstractProvider]]] = {}
+model_registry: Dict[str, KayakuProvider] = {}
+_provider_tag_registry: Dict[str, Set[Type[KayakuProvider]]] = {}
+_model_cache: Dict[str, ConfigModel] = {}
 
 
-def add_provider_cls(cls: Type[AbstractProvider]) -> None:
+def add_provider_cls(cls: Type[KayakuProvider]) -> None:
     if not cls.available():
         raise ValueError(f"{cls!r} is not available.")
     provider_tags: List[str] = list(cls.tags)
@@ -113,59 +108,51 @@ def add_provider_cls(cls: Type[AbstractProvider]) -> None:
         s.add(cls)
 
 
-def get_provider_cls(tags: List[str]) -> Type[AbstractProvider]:
-    candidate: Set[Type[AbstractProvider]] = set(
+def get_provider_cls(tags: List[str]) -> Type[KayakuProvider]:
+    candidate: Set[Type[KayakuProvider]] = set(
         _provider_tag_registry.get(tags[0], set())
     )
     for tag in tags[1:]:
         candidate &= _provider_tag_registry.get(tag, set())
-    if not candidate:
+    priority_map: List[Tuple[Tuple[int, ...], Type[KayakuProvider]]] = [
+        (tuple(provider.tags[tag] for tag in tags), provider) for provider in candidate
+    ]
+    priority_map.sort(key=lambda x: x[0], reverse=True)  # higher value is better
+    if not priority_map:
         raise ValueError(f"Cannot find a candidate for {tags!r}")
-    if len(candidate) > 1:
-        raise ValueError(f"Ambiguous candidates for {tags!r}: {candidate!r}")
-    return candidate.pop()
-
-
-async def _update_provider(provider: AbstractProvider) -> None:
-    global _model_registry
-    _model_registry = {k: v for k, v in _model_registry.items() if v is provider}
-    # pop provider-provided identifiers
-    await provider.load()
-    for identifier in await provider.provided_identifiers():
-        if identifier in _model_registry:
-            raise ValueError(
-                f"{identifier!r} is already provided by {_model_registry[identifier]}"
-            )
-        _model_registry[identifier] = provider
+    return priority_map[0][1]  # return first candidate provider
 
 
 @overload
-async def add_provider(provider: AbstractProvider) -> None:
+async def add_provider(provider: KayakuProvider) -> None:
     ...
 
 
 @overload
 async def add_provider(
-    provider: Type[AbstractProvider],
+    provider: Type[KayakuProvider],
     config: Union[ConfigModel, Dict[str, Any]],
 ) -> None:
     ...
 
 
 async def add_provider(
-    provider: Union[AbstractProvider, Type[AbstractProvider]],
+    provider: Union[KayakuProvider, Type[KayakuProvider]],
     config: Union[ConfigModel, Dict[str, Any], None] = None,
 ) -> None:
     cls = provider if isinstance(provider, type) else provider.__class__
     add_provider_cls(cls)
-    if not isinstance(provider, AbstractProvider):
-        if provider.config_cls is not None:
-            provider = provider(
-                provider.config_cls(**config) if isinstance(config, dict) else config
+    if not isinstance(provider, KayakuProvider):
+        assert config
+        provider = provider(
+            provider.config_model(**config) if isinstance(config, dict) else config
+        )
+    for domain in await provider.domains():
+        if domain in model_registry:
+            raise ValueError(
+                f"{domain!r} is already provided by {model_registry[domain]}"
             )
-        else:
-            provider = provider(None)
-    await _update_provider(provider)
+        model_registry[domain] = provider
 
 
 class ProviderScanConfig(TypedDict):
@@ -175,13 +162,11 @@ class ProviderScanConfig(TypedDict):
 
 async def scan_providers(configs: List[ProviderScanConfig]) -> None:
     for entry_point in entry_points(group="kayaku.providers"):
-        cls: Type[AbstractProvider] = entry_point.load()
+        cls: Type[KayakuProvider] = entry_point.load()
         if cls.available():
             add_provider_cls(cls)
     for config in configs:
         cls = get_provider_cls(config["tags"])
-        if cls.config_cls is None:
-            await add_provider(cls(None))
         for provider_config in config["configs"]:
             await add_provider(cls, provider_config)
 
@@ -213,10 +198,8 @@ class modify(AbstractAsyncContextManager, AbstractContextManager):
         if ctx.content:
             await asyncio.wait(
                 [
-                    asyncio.create_task(
-                        _model_registry[identifier].apply(identifier, data)
-                    )
-                    for identifier, data in ctx.content.items()
+                    asyncio.create_task(model_registry[domain].write(domain, data))
+                    for domain, data in ctx.content.items()
                 ]
             )
         ctx.content = {}

@@ -6,22 +6,22 @@ from typing import TYPE_CHECKING, Any, Dict, List, Set
 from pydantic import Field
 
 from kayaku.model import ConfigModel
-from kayaku.provider import AbstractProvider
+from kayaku.provider import KayakuProvider, RequestTicket
 from kayaku.util import exists_module
 
 if TYPE_CHECKING:
     from tomlkit.container import Container
 
 
-class _TOMLConfig(ConfigModel, identifier="kayaku.toml", policy="readonly"):
+class TOMLConfig(ConfigModel, domain="kayaku.toml", policy="readonly"):
     path: Path
     """The path of the TOML file."""
 
     encoding: str = "utf-8"
     """The encoding of the TOML file. defaults to UTF-8."""
 
-    identifier_root: List[str] = Field(default_factory=list)
-    """The root of identifier namespace.
+    root: List[str] = Field(default_factory=list)
+    """The root of domain.
     e.g.:
     ```TOML
     [tool.kayaku]
@@ -29,7 +29,7 @@ class _TOMLConfig(ConfigModel, identifier="kayaku.toml", policy="readonly"):
     [tool.abc]
     value_b = 2
     ```
-    use `identifier_root = ["tool"]` to get:
+    use `domain_root = ["tool"]` to get:
     ```json
     {
         "kayaku": {
@@ -40,7 +40,7 @@ class _TOMLConfig(ConfigModel, identifier="kayaku.toml", policy="readonly"):
         }
     }
     ```
-    and extracted identifier roots are `["kayaku", "abc"]`
+    and extracted domain roots are `["kayaku", "abc"]`
     """
     filter_mode: bool = False
     """Filter mode.
@@ -55,7 +55,7 @@ class _TOMLConfig(ConfigModel, identifier="kayaku.toml", policy="readonly"):
     [tool.abc]
     value_b = 2
     ```
-    use `identifier_root=["tool"], filter_keys=["kayaku"]` to get:
+    use `domain_root=["tool"], filter_keys=["kayaku"]` to get:
     ```json
     {
         "kayaku": {
@@ -67,19 +67,20 @@ class _TOMLConfig(ConfigModel, identifier="kayaku.toml", policy="readonly"):
     """
 
 
-class TOMLReadOnlyProvider(AbstractProvider):
-    tags = ["file", "toml", "read", "readonly"]
-    config_cls = _TOMLConfig
+class TOMLReadOnlyProvider(KayakuProvider):
+    tags = {"toml": 5, "read": 5}
+    config_model = TOMLConfig
     data: Dict[str, Any]
 
-    def __init__(self, config: _TOMLConfig) -> None:
-        self.config: _TOMLConfig = config
+    def __init__(self, config: TOMLConfig) -> None:
+        self.config: TOMLConfig = config
+        self.load()
 
     @staticmethod
     def available() -> bool:
         return exists_module("tomllib") or exists_module("tomli")
 
-    async def load(self) -> None:
+    def load(self) -> None:
         if exists_module("tomllib"):
             import tomllib as tomli  # type: ignore
         else:
@@ -87,7 +88,7 @@ class TOMLReadOnlyProvider(AbstractProvider):
         self.data: Dict[str, Any] = tomli.loads(
             self.config.path.read_text(encoding=self.config.encoding)
         )
-        for key in self.config.identifier_root:
+        for key in self.config.root:
             self.data = self.data.get(key, {})
         if self.config.filter_mode:
             self.data = {
@@ -97,22 +98,36 @@ class TOMLReadOnlyProvider(AbstractProvider):
             for k in self.config.filter_keys:
                 self.data.pop(k)
 
-    async def provided_identifiers(self) -> Set[str]:
+    async def raw(self, domain: str) -> dict[str, Any]:
+        return self.data[domain]
+
+    async def domains(self) -> Set[str]:
         return set(self.data)
 
     async def fetch(self, model):
-        if not model.__identifier__:
-            raise ValueError(f"{model!r} doesn't have identifier!")
-        return model.parse_obj(self.data[model.__identifier__])
+        if not model.__domain__:
+            raise ValueError(f"{model!r} doesn't have domain!")
+        return model.parse_obj(self.data[model.__domain__])
+
+    @KayakuProvider.wrap_request(cache=True)
+    def request(self, model, flush: bool = False) -> RequestTicket:
+        if not model.__domain__:
+            raise ValueError(f"{model!r} doesn't have domain!")
+        ticket = RequestTicket(flush)
+        if flush:
+            self.load()
+        ticket.fut.set_result(model.parse_obj(self.data[model.__domain__]))
+        return ticket
 
 
-class TOMLReadWriteProvider(AbstractProvider):
-    tags = ["file", "toml", "read", "write"]
-    config_cls = _TOMLConfig
+class TOMLReadWriteProvider(KayakuProvider):
+    tags = {"toml": 7, "read": 3, "write": 7}
+    config_model = TOMLConfig
     data: Dict[str, Any]
 
-    def __init__(self, config: _TOMLConfig) -> None:
-        self.config: _TOMLConfig = config
+    def __init__(self, config: TOMLConfig) -> None:
+        self.config: TOMLConfig = config
+        self.load()
 
     @staticmethod
     def available() -> bool:
@@ -120,7 +135,7 @@ class TOMLReadWriteProvider(AbstractProvider):
 
     def load_container(self, container: Container) -> None:
         data = container.copy()
-        for key in self.config.identifier_root:
+        for key in self.config.root:
             data = data.get(key, {})
         if self.config.filter_mode:
             data = {k: v for k, v in self.data.items() if k in self.config.filter_keys}
@@ -129,7 +144,7 @@ class TOMLReadWriteProvider(AbstractProvider):
                 data.pop(k)
         self.data = data
 
-    async def load(self) -> None:
+    def load(self) -> None:
         import tomlkit.api
         import tomlkit.toml_document
 
@@ -138,22 +153,35 @@ class TOMLReadWriteProvider(AbstractProvider):
         )
         self.load_container(self.document)
 
-    async def provided_identifiers(self) -> Set[str]:
+    async def raw(self, domain: str) -> dict[str, Any]:
+        return self.data[domain]
+
+    @KayakuProvider.wrap_request(cache=True)
+    def request(self, model, flush: bool = False) -> RequestTicket:
+        if not model.__domain__:
+            raise ValueError(f"{model!r} doesn't have domain!")
+        ticket = RequestTicket(flush)
+        if flush:
+            self.load()
+        ticket.fut.set_result(model.parse_obj(self.data[model.__domain__]))
+        return ticket
+
+    async def domains(self) -> Set[str]:
         return set(self.data)
 
     async def fetch(self, model):
-        if not model.__identifier__:
-            raise ValueError(f"{model!r} doesn't have identifier!")
-        return model.parse_obj(self.data[model.__identifier__])
+        if not model.__domain__:
+            raise ValueError(f"{model!r} doesn't have domain!")
+        return model.parse_obj(self.data[model.__domain__])
 
-    async def apply(self, identifier: str, data: Dict[str, Any]) -> None:
+    async def write(self, domain: str, data: Dict[str, Any]) -> None:
         import tomlkit.api
         from tomlkit.container import Container
 
         container = self.document
-        for key in self.config.identifier_root:
+        for key in self.config.root:
             container = container.get(key, Container())
-        container = container.setdefault(identifier, Container())
+        container = container.setdefault(domain, Container())
         container.update(data)
         self.config.path.write_text(
             tomlkit.api.dumps(self.document), encoding=self.config.encoding

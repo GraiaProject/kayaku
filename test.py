@@ -4,7 +4,7 @@ from kayaku import ConfigModel, modify, scan_providers
 from kayaku.provider import ProviderScanConfig
 
 
-class Project(ConfigModel, identifier="project"):
+class Project(ConfigModel, domain="project"):
     name: str
     authors: list
     urls: dict
