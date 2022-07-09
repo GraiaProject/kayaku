@@ -41,16 +41,21 @@ class ConfigModel(BaseModel):
 
     @classmethod
     async def create(cls, flush: bool = False) -> Self:
-        from kayaku.provider import model_registry
+        from kayaku.provider import model_registry, providers
 
         if not cls.__domain__:
             raise ValueError(
                 f"{cls!r} is not creatable as it doesn't have `domain` to lookup."
             )
         domain: str = cls.__domain__
-        if domain not in model_registry:
-            raise ValueError(f"No provider supports creating {cls!r}")
-        provider = model_registry[domain]
+        if domain in model_registry:
+            provider = model_registry[domain]
+        else:
+            for provider in providers:
+                if await provider.has_domains(domain):
+                    break
+            else:
+                raise ValueError(f"No provider found for domain {domain!r}")
         return await provider.request(cls, flush=flush)
 
     async def apply_modifies(self) -> None:

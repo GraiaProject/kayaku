@@ -1,7 +1,6 @@
 import asyncio
 
-from kayaku import ConfigModel, modify, scan_providers
-from kayaku.provider import ProviderScanConfig
+from kayaku import ConfigModel, modify
 
 
 class Project(ConfigModel, domain="project"):
@@ -14,16 +13,6 @@ class Project(ConfigModel, domain="project"):
 
 
 async def main():
-    await scan_providers(
-        [
-            ProviderScanConfig(
-                tags=["toml", "write"],
-                configs=[
-                    {"path": "./playground.toml", "filtering": (True, ["project"])}
-                ],
-            )
-        ]
-    )
     p = await Project.create()
     print(p)
     async with modify():

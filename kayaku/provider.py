@@ -32,14 +32,17 @@ if TYPE_CHECKING:
 
     T_Model = TypeVar("T_Model", bound=ConfigModel)
 
+providers: Set[KayakuProvider] = set()
+
 
 class KayakuProvider(ABC):
     tags: ClassVar[Dict[str, int]]
     config_model: ClassVar[Type[ConfigModel]]
 
-    @abstractmethod
-    def __init__(self, model: ConfigModel) -> None:
-        ...
+    def __new__(cls, *args, **kwargs):
+        obj = super().__new__(cls)
+        providers.add(obj)
+        return obj
 
     @abstractmethod
     def request(
@@ -57,6 +60,11 @@ class KayakuProvider(ABC):
 
     @abstractmethod
     async def domains(self) -> list[str]:
+        ...
+
+    @abstractmethod
+    @classmethod
+    def construct(cls, config: ConfigModel) -> Self:
         ...
 
     @staticmethod
@@ -95,80 +103,7 @@ class KayakuProvider(ABC):
 
 
 model_registry: Dict[str, KayakuProvider] = {}
-_provider_tag_registry: Dict[str, Set[Type[KayakuProvider]]] = {}
 _model_cache: Dict[str, ConfigModel] = {}
-
-
-def add_provider_cls(cls: Type[KayakuProvider]) -> None:
-    if not cls.available():
-        raise ValueError(f"{cls!r} is not available.")
-    provider_tags: List[str] = list(cls.tags)
-    for tag in provider_tags:
-        s = _provider_tag_registry.setdefault(tag, set())
-        s.add(cls)
-
-
-def get_provider_cls(tags: List[str]) -> Type[KayakuProvider]:
-    candidate: Set[Type[KayakuProvider]] = set(
-        _provider_tag_registry.get(tags[0], set())
-    )
-    for tag in tags[1:]:
-        candidate &= _provider_tag_registry.get(tag, set())
-    priority_map: List[Tuple[Tuple[int, ...], Type[KayakuProvider]]] = [
-        (tuple(provider.tags[tag] for tag in tags), provider) for provider in candidate
-    ]
-    priority_map.sort(key=lambda x: x[0], reverse=True)  # higher value is better
-    if not priority_map:
-        raise ValueError(f"Cannot find a candidate for {tags!r}")
-    return priority_map[0][1]  # return first candidate provider
-
-
-@overload
-async def add_provider(provider: KayakuProvider) -> None:
-    ...
-
-
-@overload
-async def add_provider(
-    provider: Type[KayakuProvider],
-    config: Union[ConfigModel, Dict[str, Any]],
-) -> None:
-    ...
-
-
-async def add_provider(
-    provider: Union[KayakuProvider, Type[KayakuProvider]],
-    config: Union[ConfigModel, Dict[str, Any], None] = None,
-) -> None:
-    cls = provider if isinstance(provider, type) else provider.__class__
-    add_provider_cls(cls)
-    if not isinstance(provider, KayakuProvider):
-        assert config
-        provider = provider(
-            provider.config_model(**config) if isinstance(config, dict) else config
-        )
-    for domain in await provider.domains():
-        if domain in model_registry:
-            raise ValueError(
-                f"{domain!r} is already provided by {model_registry[domain]}"
-            )
-        model_registry[domain] = provider
-
-
-class ProviderScanConfig(TypedDict):
-    tags: Required[List[str]]
-    configs: Required[List[Dict[str, Any]]]
-
-
-async def scan_providers(configs: List[ProviderScanConfig]) -> None:
-    for entry_point in entry_points(group="kayaku.providers"):
-        cls: Type[KayakuProvider] = entry_point.load()
-        if cls.available():
-            add_provider_cls(cls)
-    for config in configs:
-        cls = get_provider_cls(config["tags"])
-        for provider_config in config["configs"]:
-            await add_provider(cls, provider_config)
 
 
 @dataclass

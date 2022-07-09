@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Set
 
 from pydantic import Field
+from typing_extensions import Self
 
 from kayaku.model import ConfigModel
 from kayaku.provider import KayakuProvider, RequestTicket
@@ -98,6 +99,10 @@ class TOMLReadOnlyProvider(KayakuProvider):
             for k in self.config.filter_keys:
                 self.data.pop(k)
 
+    @classmethod
+    def construct(cls, config: TOMLConfig) -> Self:
+        return cls(config)
+
     async def raw(self, domain: str) -> dict[str, Any]:
         return self.data[domain]
 
@@ -152,6 +157,10 @@ class TOMLReadWriteProvider(KayakuProvider):
             self.config.path.read_text(encoding=self.config.encoding)
         )
         self.load_container(self.document)
+
+    @classmethod
+    def construct(cls, config: TOMLConfig) -> Self:
+        return cls(config)
 
     async def raw(self, domain: str) -> dict[str, Any]:
         return self.data[domain]
