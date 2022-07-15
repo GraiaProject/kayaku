@@ -56,6 +56,7 @@ class ConfigModel(BaseModel):
                     break
             else:
                 raise ValueError(f"No provider found for domain {domain!r}")
+            model_registry[domain] = provider
         return await provider.request(cls, flush=flush)
 
     async def apply_modifies(self) -> None:

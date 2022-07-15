@@ -1,6 +1,8 @@
 import asyncio
+from pathlib import Path
 
 from kayaku import ConfigModel, modify
+from kayaku.providers.toml import TOMLConfig, TOMLReadWriteProvider
 
 
 class Project(ConfigModel, domain="project"):
@@ -13,6 +15,7 @@ class Project(ConfigModel, domain="project"):
 
 
 async def main():
+    TOMLReadWriteProvider(TOMLConfig(path=Path("./tmp.toml")))
     p = await Project.create()
     print(p)
     async with modify():
