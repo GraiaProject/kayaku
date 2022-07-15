@@ -101,6 +101,28 @@ class KayakuProvider(ABC):
 
         return wrapper
 
+    def __init_subclass__(cls) -> None:
+        for tag in cls.tags:
+            _provider_tag_registry[tag].add(cls)
+
+
+_provider_tag_registry: Dict[str, Set[Type[KayakuProvider]]] = {}
+
+
+def find_provider_cls(tags: List[str]) -> Type[KayakuProvider]:
+    candidate: Set[Type[KayakuProvider]] = set(
+        _provider_tag_registry.get(tags[0], set())
+    )
+    for tag in tags[1:]:
+        candidate &= _provider_tag_registry.get(tag, set())
+    priority_map: List[Tuple[Tuple[int, ...], Type[KayakuProvider]]] = [
+        (tuple(provider.tags[tag] for tag in tags), provider) for provider in candidate
+    ]
+    priority_map.sort(key=lambda x: x[0], reverse=True)  # higher value is better
+    if not priority_map:
+        raise ValueError(f"Cannot find a candidate for {tags!r}")
+    return priority_map[0][1]  # return first candidate provider
+
 
 model_registry: Dict[str, KayakuProvider] = {}
 _model_cache: Dict[str, ConfigModel] = {}
