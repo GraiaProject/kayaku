@@ -11,7 +11,7 @@ dependencies = [
     "importlib-metadata>=3.6"
 ]
 name = "kayaku"
-version = "0.2.0"
+version = "0.2.1"
 description = "An powerful and flexible configuration solution."
 readme = "README.md"
 classifiers = [
@@ -24,7 +24,7 @@ classifiers = [
 
 [project.optional-dependencies]
 [tool.pdm]
-includes = ["src/kayaku"]
+includes = ["kayaku"]
 [tool.pdm.dev-dependencies]
 dev = [
     "black<23.0.0,>=22.3.0",
