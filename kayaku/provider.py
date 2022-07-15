@@ -62,8 +62,8 @@ class KayakuProvider(ABC):
     async def domains(self) -> list[str]:
         ...
 
-    @abstractmethod
     @classmethod
+    @abstractmethod
     def construct(cls, config: ConfigModel) -> Self:
         ...
 
@@ -80,10 +80,10 @@ class KayakuProvider(ABC):
     @staticmethod
     def wrap_request(*, cache: bool):
         def wrapper(
-            func: Callable[[Self, type[T_Model], bool], RequestTicket[T_Model]]
-        ) -> Callable[[Self, type[T_Model], bool], RequestTicket[T_Model]]:
+            func: Callable[[T, type[T_Model], bool], RequestTicket[T_Model]]
+        ) -> Callable[[T, type[T_Model], bool], RequestTicket[T_Model]]:
             @functools.wraps(func)
-            def inner(self: Self, model: type[T_Model], flush: bool = False):
+            def inner(self: T, model: type[T_Model], flush: bool = False):
                 if not model.__domain__:
                     raise ValueError(f"{model!r} doesn't have domain!")
                 if model.__domain__ in _model_cache:
