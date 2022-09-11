@@ -26,7 +26,7 @@ def test_insert_spec():
         kayaku.storage.insert(
             SourceSpec(["a", "b", "c"], ["d", "e", "credential"], empty),
             PathSpec([".", "credential"], []),
-            root,
+            _root=root,
         )
 
 
@@ -74,22 +74,22 @@ def test_lookup_spec():
         _root=root,
     )
 
-    assert (p := root.lookup(["a", "b", "c", "xxx", "d", "e", "f"])) and p[2] == (
+    assert (p := root.lookup(["a", "b", "c", "xxx", "d", "e", "f"])) and p[0] == (
         SourceSpec(["a", "b", "c", "xxx"], [], empty),
         PathSpec([".", "hmm"], path_sect),
     )
 
-    assert (p := root.lookup(["a", "b", "c", "d", "e", "credential"])) and p[2] == (
+    assert (p := root.lookup(["a", "b", "c", "d", "e", "credential"])) and p[0] == (
         SourceSpec(["a", "b", "c"], ["d", "e", "credential"], empty),
         PathSpec([".", "credential"], path_sect),
     )
 
-    assert (p := root.lookup(["a", "b", "c", "d", "p", "xxx", "e", "f"])) and p[2] == (
+    assert (p := root.lookup(["a", "b", "c", "d", "p", "xxx", "e", "f"])) and p[0] == (
         SourceSpec(["a", "b", "c", "d"], ["e", "f"], empty),
         PathSpec([".", "any"], path_sect),
     )
 
-    assert (p := root.lookup(["a", "b", "c", "d", "o", "p", "e", "f"])) and p[2] == (
+    assert (p := root.lookup(["a", "b", "c", "d", "o", "p", "e", "f"])) and p[0] == (
         SourceSpec(["a", "b", "c", "d"], ["o", "p", "e", "f"], empty),
         PathSpec([".", "whirl"], path_sect),
     )
@@ -117,6 +117,32 @@ def test_spec_lookup_fmt_err():
         _root=root,
     )
 
-    assert (p := root.lookup(["a", "b", "c", "d", "e"])) and p[3] == FormattedPath(
+    assert (p := root.lookup(["a", "b", "c", "d", "e"])) and p[1] == FormattedPath(
         Path("d/e/f"), ["c", "d", "e"]
     )
+
+
+def test_spec_lookup_wrapped():
+    import kayaku.storage
+    from kayaku.spec import FormattedPath, parse_path, parse_source
+
+    root = kayaku.storage._PrefixNode()
+
+    kayaku.storage.insert(
+        parse_source("a.b.c.{**}"),
+        parse_path("a/b/c:{}"),
+        _root=root,
+    )
+
+    kayaku.storage.insert(
+        parse_source("a.b.{**}"),
+        parse_path("d/e/f:{**}"),
+        _root=root,
+    )
+
+    assert kayaku.storage.lookup(
+        ["a", "b", "c", "d", "e"], _root=root
+    ) == FormattedPath(Path("d/e/f"), ["c", "d", "e"])
+
+    with pytest.raises(ValueError):
+        kayaku.storage.lookup(["a", "b", "c", "d", "e"])

@@ -1,5 +1,2 @@
-from __future__ import annotations
-
-
-def initialize(specs: dict[str, str]) -> None:
-    ...
+from .domain import initialize as initialize
+from .model import ConfigModel as ConfigModel

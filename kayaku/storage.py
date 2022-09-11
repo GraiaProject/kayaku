@@ -44,7 +44,7 @@ class _PrefixNode:
 
     def lookup(
         self, frags: list[str], index: int = 0
-    ) -> tuple[int, int, tuple[SourceSpec, PathSpec], FormattedPath] | None:
+    ) -> tuple[tuple[SourceSpec, PathSpec], FormattedPath] | None:
         if index < len(frags) and (nxt_nd := self.nxt.get(frags[index], None)):
             if lookup_res := nxt_nd.lookup(frags, index + 1):
                 return lookup_res
@@ -54,17 +54,17 @@ class _PrefixNode:
                 src_spec, path_spec = spec
                 parts = (
                     src_spec.section.prefix
-                    + frags[index:-suffix_ind or None]
+                    + frags[index : -suffix_ind or None]
                     + src_spec.section.suffix
                 )
                 if formatted := path_spec.format(parts):
-                    return index, suffix_ind, spec, formatted
+                    return spec, formatted
 
 
 _root = _PrefixNode()
 
 
-def insert(src: SourceSpec, path: PathSpec, _root=_root) -> None:
+def insert(src: SourceSpec, path: PathSpec, *, _root=_root) -> None:
     prefix, suffix = src.prefix, src.suffix
     target_nd = _root.insert(prefix).insert(list(reversed(suffix)))
     if target_nd.bound:
@@ -72,3 +72,9 @@ def insert(src: SourceSpec, path: PathSpec, _root=_root) -> None:
             f"{'.'.join(prefix + ['*'] + suffix)} is already bound to {target_nd.bound}"
         )
     target_nd.bound = (src, path)
+
+
+def lookup(domains: list[str], *, _root=_root) -> FormattedPath:
+    if res := _root.lookup(domains):
+        return res[1]
+    raise ValueError(f"Unable to lookup {'.'.join(domains)}")
