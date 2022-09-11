@@ -74,7 +74,11 @@ class PathSpec:
         front = parts[:front_len]
         back = parts[front_len:][-back_len or len(parts) :]
         ext = parts[front_len : -back_len or len(parts)]
-        if len(front) != front_len or len(back) != back_len:
+        if (
+            len(front) != front_len
+            or len(back) != back_len
+            or (ext and PathFill.EXTEND not in self.path + self.section)
+        ):
             return
         formatted_it = iter(front + back)
 

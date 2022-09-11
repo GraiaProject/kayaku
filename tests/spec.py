@@ -1,6 +1,9 @@
+from pathlib import Path
+
 import pytest
 
 from kayaku.spec import (
+    FormattedPath,
     PathFill,
     PathSpec,
     SectionSpec,
@@ -28,3 +31,22 @@ def test_parse_spec_err():
         parse_path("{**}:{**}")
     with pytest.raises(ValueError):
         parse_path("a::b")
+
+
+def test_format_path_spec():
+    assert parse_path("./config/modules/{}:config.{**}.{}.mock").format(
+        ["a", "b", "c", "d"]
+    ) == FormattedPath(Path("./config/modules/a"), ["config", "b", "c", "d", "mock"])
+
+    assert parse_path("./config/modules/{}:config.{}.mock").format(
+        ["a", "b"]
+    ) == FormattedPath(Path("./config/modules/a"), ["config", "b", "mock"])
+
+    assert parse_path("./config/modules/{**}:config.{}.{}.mock").format(
+        ["a", "b", "c", "d"]
+    ) == FormattedPath(Path("./config/modules/a/b"), ["config", "c", "d", "mock"])
+
+    assert (
+        parse_path("./config/modules/{}:config.{}.mock").format(["a", "b", "c", "d"])
+        is None
+    )
