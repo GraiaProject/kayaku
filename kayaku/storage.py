@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from .spec import PathSpec
-
-# TODO: lookup impl
+from .spec import PathSpec, SourceSpec
 
 
 class _SuffixNode:
-    bound: PathSpec | None
+    bound: tuple[SourceSpec, PathSpec] | None
 
     def __init__(self) -> None:
         self.bound = None
@@ -17,6 +15,16 @@ class _SuffixNode:
             return self
         nxt = self.nxt.setdefault(frags[index], _SuffixNode())
         return nxt.insert(frags, index + 1)
+
+    def lookup(
+        self, frags: list[str], index: int = 0
+    ) -> tuple[int, tuple[SourceSpec, PathSpec] | None]:
+        res = index, self.bound
+        if index < len(frags):
+            if nxt_nd := self.nxt.get(frags[index], None):
+                if (lookup_res := nxt_nd.lookup(frags, index + 1)) and lookup_res[1]:
+                    return lookup_res
+        return res
 
 
 class _PrefixNode:
@@ -34,15 +42,26 @@ class _PrefixNode:
         nxt = self.nxt.setdefault(frags[index], _PrefixNode())
         return nxt.insert(frags, index + 1)
 
+    def lookup(
+        self, frags: list[str], index: int = 0
+    ) -> tuple[int, int, tuple[SourceSpec, PathSpec]] | None:
+        if index < len(frags) and (nxt_nd := self.nxt.get(frags[index], None)):
+            if lookup_res := nxt_nd.lookup(frags, index + 1):
+                return lookup_res
+        if self.suffix:
+            suffix_ind, spec = self.suffix.lookup(list(reversed(frags[index:])))
+            if spec:
+                return index, suffix_ind, spec
+
 
 _root = _PrefixNode()
 
 
-def insert(prefix: list[str], suffix: list[str], path: PathSpec):
-    suffix_nd = _root.insert(prefix)
-    target_nd = suffix_nd.insert(suffix)
+def insert(src: SourceSpec, path: PathSpec, _root=_root) -> None:
+    prefix, suffix = src.prefix, src.suffix
+    target_nd = _root.insert(prefix).insert(list(reversed(suffix)))
     if target_nd.bound:
         raise ValueError(
             f"{'.'.join(prefix + ['*'] + suffix)} is already bound to {target_nd.bound}"
         )
-    target_nd.bound = path
+    target_nd.bound = (src, path)
