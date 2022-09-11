@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .spec import PathSpec, SourceSpec
+from .spec import FormattedPath, PathSpec, SourceSpec
 
 
 class _SuffixNode:
@@ -44,14 +44,21 @@ class _PrefixNode:
 
     def lookup(
         self, frags: list[str], index: int = 0
-    ) -> tuple[int, int, tuple[SourceSpec, PathSpec]] | None:
+    ) -> tuple[int, int, tuple[SourceSpec, PathSpec], FormattedPath] | None:
         if index < len(frags) and (nxt_nd := self.nxt.get(frags[index], None)):
             if lookup_res := nxt_nd.lookup(frags, index + 1):
                 return lookup_res
         if self.suffix:
             suffix_ind, spec = self.suffix.lookup(list(reversed(frags[index:])))
             if spec:
-                return index, suffix_ind, spec
+                src_spec, path_spec = spec
+                parts = (
+                    src_spec.section.prefix
+                    + frags[index:-suffix_ind or None]
+                    + src_spec.section.suffix
+                )
+                if formatted := path_spec.format(parts):
+                    return index, suffix_ind, spec, formatted
 
 
 _root = _PrefixNode()

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import enum
 import re
+from contextlib import suppress
 from dataclasses import dataclass
-from typing import cast
+from pathlib import Path
+from typing import Literal, cast
 
 from typing_extensions import TypedDict
 
@@ -58,6 +60,43 @@ class PathFill(enum.Enum):
 class PathSpec:
     path: list[str | PathFill]
     section: list[str | PathFill]
+
+    @property
+    def fill_lens(self) -> tuple[int, int]:
+        fills = [i for i in self.path + self.section if isinstance(i, PathFill)]
+        if PathFill.EXTEND not in fills:
+            return len(fills), 0
+        ext_ind = fills.index(PathFill.EXTEND)
+        return ext_ind, len(fills) - ext_ind - 1
+
+    def format(self, parts: list[str]) -> FormattedPath | None:
+        front_len, back_len = self.fill_lens
+        front = parts[:front_len]
+        back = parts[front_len:][-back_len or len(parts) :]
+        ext = parts[front_len : -back_len or len(parts)]
+        if len(front) != front_len or len(back) != back_len:
+            return
+        formatted_it = iter(front + back)
+
+        fmt_path: list[str] = []
+        for p in self.path:
+            if p is PathFill.EXTEND:
+                fmt_path.extend(ext)
+            else:
+                fmt_path.append(next(formatted_it) if p is PathFill.SINGLE else p)
+        fmt_sect: list[str] = []
+        for p in self.section:
+            if p is PathFill.EXTEND:
+                fmt_sect.extend(ext)
+            else:
+                fmt_sect.append(next(formatted_it) if p is PathFill.SINGLE else p)
+        return FormattedPath(Path(*fmt_path), fmt_sect)
+
+
+@dataclass
+class FormattedPath:
+    path: Path
+    section: list[str]
 
 
 def parse_path(spec: str) -> PathSpec:
