@@ -17,7 +17,9 @@ class ConfigModel(BaseModel):
             )
         domain_map[domain_tup] = cls
         if _Reg._initialized:
-            _insert_domain(domain_tup)
+            raise RuntimeError(
+                f"kayaku is already fully initialized, adding {cls} is not allowed."
+            )
         else:
             _Reg._postponed.append(domain_tup)
         return super().__init_subclass__()

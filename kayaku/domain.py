@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import ClassVar, Dict, Tuple, Type
 
 from .model import ConfigModel
@@ -9,6 +10,8 @@ from .storage import insert, lookup
 DomainType = Tuple[str, ...]
 
 domain_map: dict[DomainType, type[ConfigModel]] = {}
+
+file_map: dict[Path, dict[DomainType, type[ConfigModel]]] = {}
 
 
 class _Reg:
@@ -21,14 +24,15 @@ class _Reg:
 def _insert_domain(domains: DomainType) -> None:
     cls: Type[ConfigModel] = domain_map[domains]
     fmt_path: FormattedPath = lookup(list(domains))
-    # TODO: init model and file
+    path = fmt_path.path.with_suffix(".toml")  # TODO: hocon
+    section = tuple(fmt_path.section)
+    file_map.setdefault(path, {}).setdefault(section, cls)
 
 
-def __parse_postponed():
+def _bootstrap():
     for domain in _Reg._postponed:
         _insert_domain(domain)
-    _Reg._postponed = []
-    # initial file checks
+    _Reg._initialized = True
 
 
 def initialize(specs: Dict[str, str], *, __bootstrap: bool = True) -> None:
@@ -45,5 +49,4 @@ def initialize(specs: Dict[str, str], *, __bootstrap: bool = True) -> None:
             f"{len(exceptions)} occurred during initialization.", exceptions
         )
     if __bootstrap:
-        __parse_postponed()
-        _Reg._initialized = True
+        _bootstrap()

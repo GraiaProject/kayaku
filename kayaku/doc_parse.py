@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import ast
 import inspect
-import sys
 from typing import cast
 
 from pydantic import BaseModel
