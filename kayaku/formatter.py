@@ -7,7 +7,7 @@ from pydantic.fields import ModelField
 from pydantic.typing import display_as_type
 from tomlkit import comment
 from tomlkit.container import Container
-from tomlkit.items import AbstractTable, Comment, Item, Key, SingleKey, item
+from tomlkit.items import AbstractTable, AoT, Comment, Item, Key, SingleKey, item
 
 from .doc_parse import extract_field_docs
 
@@ -22,6 +22,17 @@ def _doc_comment(
             if f"# {d}" not in comments
         ]
     )
+
+
+def _collect_sub_comments(item: Item) -> set[str]:
+    res: set[str] = set()
+    if isinstance(item, Comment):
+        res.add(item.trivia.comment)
+    elif isinstance(item, AbstractTable):
+        [res.update(_collect_sub_comments(i[1])) for i in item.value.body]
+    elif isinstance(item, AoT):
+        [res.update(_collect_sub_comments(i)) for i in item.body]
+    return res
 
 
 def _format_exist(
@@ -42,11 +53,11 @@ def _format_exist(
             body.append((k, v))
         elif k and k.key in fields:
             field, doc = fields.pop(k.key)
-            if not v.trivia.comment:
+            if not v.trivia.comment or v.trivia.comment.startswith("# type: "):
                 v.comment(f"type: {display_as_type(field.type_)}")
             body.append((k, v))
             if doc:
-                _doc_comment(body, doc, set())
+                _doc_comment(body, doc, _collect_sub_comments(v))
 
 
 def _format_not_exist(
