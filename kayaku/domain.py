@@ -64,7 +64,7 @@ def _bootstrap_files():
             except pydantic.ValidationError as e:
                 failed.append(e)
             format_with_model(container, cls)
-        print(tomlkit.dumps(document))
+        path.write_text(tomlkit.dumps(document), encoding="utf-8")
         if failed:
             raise ValueError(f"{len(failed)} models failed to validate.", failed)
 
