@@ -1,7 +1,6 @@
-from typing import Tuple
+from typing import Tuple, Type, TypeVar, Union, cast
 
 from pydantic import BaseConfig, BaseModel, Extra
-from typing_extensions import Self
 
 
 class ConfigModel(BaseModel):
@@ -9,7 +8,7 @@ class ConfigModel(BaseModel):
         domain_tup: Tuple[str, ...] = tuple(domain.split("."))
         if not all(domain_tup):
             raise ValueError(f"{domain!r} contains empty segment!")
-        from .domain import _insert_domain, _Reg, domain_map
+        from .domain import _Reg, domain_map
 
         if domain_tup in domain_map:
             raise NameError(
@@ -26,10 +25,21 @@ class ConfigModel(BaseModel):
 
     class Config(BaseConfig):
         extra = Extra.ignore
+        validate_assignment: bool = True
 
-    @classmethod
-    def create(cls) -> Self:
-        ...
 
-    def save(self) -> None:
-        ...
+T_Model = TypeVar("T_Model", bound=ConfigModel)
+
+
+def create(cls: Type[T_Model]) -> T_Model:
+    from .domain import _model_map
+
+    return cast(T_Model, _model_map[cls])
+
+
+def save(model: Union[T_Model, Type[T_Model]]) -> None:
+    from .domain import _model_map
+
+    inst: ConfigModel = _model_map[model] if isinstance(model, type) else model
+
+    return

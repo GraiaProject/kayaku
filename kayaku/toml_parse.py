@@ -37,7 +37,7 @@ def _collect_sub_comments(item: Item) -> set[str]:
 
 def _format_exist(
     fields: dict[str, tuple[ModelField, str | None]],
-    origin: Container,
+    origin_body: list[tuple[Key | None, Item]],
     body: list[tuple[Key | None, Item]],
 ) -> None:
     field_comments: set[str] = set()
@@ -46,18 +46,19 @@ def _format_exist(
             field_comments.update(
                 f"# {d}" for d in inspect.cleandoc(doc).splitlines(False)
             )
-    for k, v in origin.body:
+    for k, v in origin_body:
         if k is None and (
             not isinstance(v, Comment) or v.trivia.comment not in field_comments
         ):
             body.append((k, v))
-        elif k and k.key in fields:
-            field, doc = fields.pop(k.key)
-            if not v.trivia.comment or v.trivia.comment.startswith("# type: "):
-                v.comment(f"type: {display_as_type(field.type_)}")
+        elif k:
             body.append((k, v))
-            if doc:
-                _doc_comment(body, doc, _collect_sub_comments(v))
+            if k.key in fields:
+                field, doc = fields.pop(k.key)
+                if not v.trivia.comment or v.trivia.comment.startswith("# type: "):
+                    v.comment(f"type: {display_as_type(field.type_)}")
+                if doc:
+                    _doc_comment(body, doc, _collect_sub_comments(v))
 
 
 def _format_not_exist(
@@ -91,7 +92,12 @@ def format_with_model(
         container = container.value
     fields: dict[str, tuple[ModelField, str | None]] = extract_field_docs(model)
     body: list[tuple[Key | None, Item]] = []
-    _format_exist(fields, container, body)
+    _format_exist(fields, container.body, body)
     _format_not_exist(fields, body)
     container.body.clear()
     container.body.extend(body)
+
+
+def update_from_model(container: Container | AbstractTable, model: BaseModel) -> None:
+
+    ...

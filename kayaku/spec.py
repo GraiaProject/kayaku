@@ -102,6 +102,12 @@ class FormattedPath:
     path: Path
     section: list[str]
 
+    def __post_init__(self) -> None:
+        self.path = self.path.with_suffix(".toml")
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.touch(exist_ok=True)
+        self.path = self.path.resolve()
+
 
 def parse_path(spec: str) -> PathSpec:
     replacer = {"{*}": PathFill.SINGLE, "{}": PathFill.SINGLE, "{**}": PathFill.EXTEND}

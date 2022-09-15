@@ -5,18 +5,17 @@ from typing import Any, ClassVar, Dict, Tuple, Type
 
 import pydantic
 
-from .formatter import format_with_model
 from .model import ConfigModel
 from .spec import FormattedPath, parse_path, parse_source
 from .storage import insert, lookup
+from .toml_parse import format_with_model
 
 DomainType = Tuple[str, ...]
 
 domain_map: dict[DomainType, type[ConfigModel]] = {}
-
-file_map: dict[Path, dict[DomainType, type[ConfigModel]]] = {}
-
+file_map: dict[Path, dict[DomainType, list[type[ConfigModel]]]] = {}
 _model_map: dict[type[ConfigModel], ConfigModel] = {}
+_domain_occupation: dict[Path, set[DomainType]] = {}
 
 
 class _Reg:
@@ -28,9 +27,16 @@ class _Reg:
 def _insert_domain(domains: DomainType) -> None:
     cls: Type[ConfigModel] = domain_map[domains]
     fmt_path: FormattedPath = lookup(list(domains))
-    path = fmt_path.path.with_suffix(".toml")  # TODO: hocon
+    path = fmt_path.path
     section = tuple(fmt_path.section)
-    file_map.setdefault(path, {}).setdefault(section, cls)
+    if section in _domain_occupation.setdefault(path, set()):
+        raise NameError(f"{path.as_posix()}::{'.'.join(section)} is occupied!")
+    for f_name in cls.__fields__:
+        sub_sect = section + (f_name,)
+        if sub_sect in _domain_occupation[path]:
+            raise NameError(f"{path.as_posix()}::{'.'.join(sub_sect)} is occupied!")
+        _domain_occupation[path].add(sub_sect)
+    file_map.setdefault(path, {}).setdefault(section, []).append(cls)
 
 
 def _bootstrap():
@@ -44,11 +50,9 @@ def _bootstrap_files():
     import tomlkit
 
     for path, sect_map in file_map.items():
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.touch(exist_ok=True)
         document = tomlkit.loads(path.read_text(encoding="utf-8"))
         failed: list[pydantic.ValidationError] = []
-        for sect, cls in sect_map.items():
+        for sect, classes in sect_map.items():
             try:
                 container: Any = document
                 for s in sect:
@@ -59,11 +63,13 @@ def _bootstrap_files():
                     tables[i - 1].append(sect[i], tables[i])
                 document.append(sect[0], tables[0])
                 container = tables[-1]
-            try:
-                _model_map[cls] = cls.parse_obj(container)
-            except pydantic.ValidationError as e:
-                failed.append(e)
-            format_with_model(container, cls)
+            for cls in classes:
+                try:
+                    _model_map[cls] = cls.parse_obj(container)
+                except pydantic.ValidationError as e:
+                    failed.append(e)
+            for cls in classes:
+                format_with_model(container, cls)
         path.write_text(tomlkit.dumps(document), encoding="utf-8")
         if failed:
             raise ValueError(f"{len(failed)} models failed to validate.", failed)

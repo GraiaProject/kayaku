@@ -38,7 +38,7 @@ def test_lookup_spec():
 
     root = kayaku.storage._PrefixNode()
 
-    path_sect: list[PathFill | str] = [PathFill.EXTEND]
+    path_sect = [PathFill.EXTEND]
 
     kayaku.storage.insert(
         SourceSpec(["a", "b", "c"], ["d", "e", "f"], empty),
