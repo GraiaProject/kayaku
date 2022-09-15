@@ -1,4 +1,4 @@
-from typing import Tuple, Type, TypeVar, Union, cast
+from typing import Any, Tuple, Type, TypeVar, Union, cast
 
 from pydantic import BaseConfig, BaseModel, Extra
 
@@ -38,8 +38,19 @@ def create(cls: Type[T_Model]) -> T_Model:
 
 
 def save(model: Union[T_Model, Type[T_Model]]) -> None:
-    from .domain import _model_map
+    import tomlkit
+
+    from .domain import _model_map, _model_path
+    from .toml_utils import validate_data
+    from .toml_utils.modify import update_from_model
 
     inst: ConfigModel = _model_map[model] if isinstance(model, type) else model
-
-    return
+    fmt_path = _model_path[inst.__class__]
+    document = tomlkit.loads(fmt_path.path.read_text("utf-8"))
+    container: Any = document
+    for sect in fmt_path.section:
+        container = container[sect]
+    data = inst.dict(by_alias=True, exclude_none=True)
+    validate_data(data)
+    update_from_model(container, data)
+    fmt_path.path.write_text(tomlkit.dumps(document), "utf-8")

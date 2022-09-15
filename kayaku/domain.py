@@ -8,12 +8,13 @@ import pydantic
 from .model import ConfigModel
 from .spec import FormattedPath, parse_path, parse_source
 from .storage import insert, lookup
-from .toml_parse import format_with_model
+from .toml_utils.format import format_with_model
 
 DomainType = Tuple[str, ...]
 
 domain_map: dict[DomainType, type[ConfigModel]] = {}
 file_map: dict[Path, dict[DomainType, list[type[ConfigModel]]]] = {}
+_model_path: dict[type[ConfigModel], FormattedPath] = {}
 _model_map: dict[type[ConfigModel], ConfigModel] = {}
 _domain_occupation: dict[Path, set[DomainType]] = {}
 
@@ -37,6 +38,7 @@ def _insert_domain(domains: DomainType) -> None:
             raise NameError(f"{path.as_posix()}::{'.'.join(sub_sect)} is occupied!")
         _domain_occupation[path].add(sub_sect)
     file_map.setdefault(path, {}).setdefault(section, []).append(cls)
+    _model_path[cls] = fmt_path
 
 
 def _bootstrap():
@@ -65,7 +67,7 @@ def _bootstrap_files():
                 container = tables[-1]
             for cls in classes:
                 try:
-                    _model_map[cls] = cls.parse_obj(container)
+                    _model_map[cls] = cls.parse_obj(container.unwrap())
                 except pydantic.ValidationError as e:
                     failed.append(e)
             for cls in classes:

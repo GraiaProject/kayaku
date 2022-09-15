@@ -9,7 +9,9 @@ from tomlkit import comment
 from tomlkit.container import Container
 from tomlkit.items import AbstractTable, AoT, Comment, Item, Key, SingleKey, item
 
-from .doc_parse import extract_field_docs
+from kayaku.toml_utils import validate_data
+
+from ..doc_parse import extract_field_docs
 
 
 def _doc_comment(
@@ -69,13 +71,16 @@ def _format_not_exist(
         i[1].trivia.comment for i in body if isinstance(i[1], Comment)
     }
     for k, (field, doc) in fields.items():
-        type_comment = f"# type: {display_as_type(field.type_)}"
-        if not field.required:
+        type_comment = f"# type: {dict(field.__repr_args__())['type']}"
+        if field.default is not None:
+            validate_data({"": field.default})
             i: Item = item(field.default)
             i.comment(type_comment)
             body.append((SingleKey(k), i))
         else:
-            i: Item = comment(f"{k} = ... {type_comment}")
+            i: Item = comment(
+                f"{k} = {'...' if field.required else 'None'} {type_comment}"
+            )
             if i.trivia.comment not in body_comments:
                 body.append((None, i))
         if doc and doc not in body_comments:
@@ -96,8 +101,3 @@ def format_with_model(
     _format_not_exist(fields, body)
     container.body.clear()
     container.body.extend(body)
-
-
-def update_from_model(container: Container | AbstractTable, model: BaseModel) -> None:
-
-    ...
