@@ -10,6 +10,8 @@ from typing import Any, Literal, Protocol, TextIO, runtime_checkable
 from lark.lark import Lark
 from lark.visitors import Transformer
 
+from .env import DEBUG
+
 
 @runtime_checkable
 class JSONModule(Protocol):
@@ -104,19 +106,18 @@ def implement(
         start="value",
         maybe_placeholders=False,
         regex=True,
-        # transformer=transformer,
+        transformer=None if DEBUG.get() else transformer,
     )
 
     def loads(src: str) -> Any:
         """
         Parse JSON from a string
         """
-        # if DEBUG:
-        tree = parser.parse(src)
-        return transformer.transform(tree)
-        # else:
-        #    return parser.parse(src)
-        return parser.parse(src)
+        if DEBUG.get():
+            tree = parser.parse(src)
+            return transformer.transform(tree)
+        else:
+            return parser.parse(src)
 
     def load(file: TextIO | Path) -> str:
         """

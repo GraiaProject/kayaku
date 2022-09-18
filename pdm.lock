@@ -177,14 +177,6 @@ requires_python = ">=3.7"
 summary = "A lil' TOML parser"
 
 [[package]]
-name = "tomlkit"
-version = "0.11.4"
-requires_python = ">=3.6,<4.0"
-git = "https://github.com/sdispater/tomlkit"
-revision = "7194daeb5a951a2c1d54bd909968323912f941d8"
-summary = "Style preserving TOML library"
-
-[[package]]
 name = "typing-extensions"
 version = "4.3.0"
 requires_python = ">=3.7"
@@ -198,7 +190,7 @@ summary = "Backport of pathlib-compatible object wrapper for zip files"
 
 [metadata]
 lock_version = "4.0"
-content_hash = "sha256:48453946844592d7ee60ba30170e7c2aa85a23e91b8e339fd637f59006748fe1"
+content_hash = "sha256:540d265a68717ef54852455eba1db76802653168b76b8d66b17c75449065d8ba"
 
 [metadata.files]
 "attrs 22.1.0" = [

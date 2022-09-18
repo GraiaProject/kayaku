@@ -34,6 +34,7 @@ from .types import (  # noqa: F401
     Object,
     Quote,
     String,
+    Value,
 )
 
 
@@ -65,11 +66,15 @@ class JSON5Transformer(StylePreservingTransformer):
         self, string: tuple[str, list[int]] | None = None
     ) -> String:
         value, linebreaks = string or ("", [])
-        return String(value, quote=Quote.DOUBLE, linebreaks=linebreaks)
+        s = String(value)
+        s.__post_init__(quote=Quote.DOUBLE, linebreaks=linebreaks)
+        return s
 
     @v_args(inline=True)
     def single_quote_string(self, string: str | None = None) -> String:
-        return String(string or "", quote=Quote.SINGLE)
+        s = String(string or "")
+        s.__post_init__(quote=Quote.SINGLE)
+        return s
 
     @v_args(inline=True)
     def IDENTIFIER_NAME(self, string) -> Identifier:
@@ -80,9 +85,9 @@ class JSON5Transformer(StylePreservingTransformer):
         return number
 
     def SIGNED_HEXNUMBER(self, token: Token):
-        return HexInteger(
-            int(token.value, base=16), prefixed=token.value.startswith(("+", "-"))
-        )
+        i = HexInteger(token.value, base=16)
+        i.__post_init__(prefixed=token.value.startswith(("+", "-")))
+        return i
 
     def SIGNED_NUMBER(self, token: Token):
         prefixed = token.value.startswith(("+", "-"))
@@ -92,19 +97,26 @@ class JSON5Transformer(StylePreservingTransformer):
             and token.value
             not in {"NaN", "+NaN", "-NaN", "+Infinity", "-Infinity", "Infinity"}
         ):
-            return Integer(token.value, prefixed=prefixed)
+            i = Integer(token.value)
+            i.__post_init__(prefixed=prefixed)
+            return i
         significand = len(token.value.split(".")[1]) if "." in token.value else None
-        return Float(
+        f = Float(
             token.value,
+        )
+        f.__post_init__(
             prefixed=prefixed,
             leading_point=token.value.startswith("."),
             significand=significand,
         )
+        return f
 
     @staticmethod
     def _set_trail(obj: Container, children: list) -> None:
         obj.json_container_tail = children[-2]
-        obj.json_container_trailing_comma = isinstance(children[-3], Token)
+        obj.json_container_trailing_comma = (
+            isinstance(children[-3], Token) and children[-3].value == ","
+        )
 
     def object_with_trailing(self, children: list) -> Any:
         o = Object(cast(Member, c) for c in children if isinstance(c, tuple))
@@ -112,7 +124,9 @@ class JSON5Transformer(StylePreservingTransformer):
         return o
 
     def array_with_trailing(self, children: list) -> Any:
-        a = Array((value for value in children if isinstance(value, JSONType)))
+        a = Array(
+            (cast(Value, value) for value in children if isinstance(value, JSONType))
+        )
         self._set_trail(a, children)
         return a
 

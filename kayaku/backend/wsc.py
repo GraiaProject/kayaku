@@ -10,6 +10,7 @@ from lark.lark import Lark
 from lark.lexer import Token
 from lark.visitors import Transformer, v_args
 
+from .env import DEBUG
 from .types import (
     WSC,
     BlockStyleComment,
@@ -26,12 +27,10 @@ def parse(wsc: str) -> list[WSC]:
     :param wsc: A string representing whitespaces and/or comments.
     :returns: A list of [WSC][kayaku.backend.types.WSC] only.
     """
-    # if DEBUG:
-    #     tree = parser.parse(wsc)
-    #     return cast(list[WSC], transformer.transform(tree))
-    # else:
-    #     return cast(list[WSC], parser.parse(wsc))
-    return cast(List[WSC], parser.parse(wsc))
+    if not DEBUG.get():
+        return cast(List[WSC], parser.parse(wsc))
+    tree = parser.parse(wsc)
+    return cast(List[WSC], transformer.transform(tree))
 
 
 def parse_list(items: list["WSC" | str] | None = None) -> list[WSC]:

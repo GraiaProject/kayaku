@@ -7,7 +7,7 @@ Most of the time you won't have to instanciate them manually.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Generic, Iterable, List, Tuple, TypeVar, Union
+from typing import Any, Generic, Iterable, List, Tuple, TypeVar, Union, overload
 
 from typing_extensions import TypeAlias
 
@@ -17,17 +17,15 @@ class JSONType:
     Base class for parsed types with style and metadata preservation.
     """
 
-    json_before: list[WSC]
+    json_before: list[WSC] = []
     """Whitespaces and comments sequence before the object."""
-    json_after: list[WSC]
+    json_after: list[WSC] = []
     """Whitespaces and comments sequence after the object."""
 
-    def __init__(
+    def __post_init__(
         self,
-        *_,
         before: list[WSC | str] | None = None,
         after: list[WSC | str] | None = None,
-        **__,
     ):
         from . import wsc
 
@@ -46,24 +44,22 @@ class Container(JSONType):
     Base class for containers with style and metadata preservation.
     """
 
-    json_container_head: list[WSC]
+    json_container_head: list[WSC] = []
     """Whitespaces and comments sequence in the head of the container."""
-    json_container_tail: list[WSC]
+    json_container_tail: list[WSC] = []
     """Whitespaces and comments sequence in the tail of the container."""
-    json_container_trailing_comma: bool
+    json_container_trailing_comma: bool = False
     """Wether this container have a trailing comma or not."""
 
-    def __init__(
+    def __post_init__(
         self,
-        *args,
         before: list[WSC | str] | None = None,
         after: list[WSC | str] | None = None,
         head: list[WSC | str] | None = None,
         tail: list[WSC | str] | None = None,
         trailing_comma: bool = False,
-        **kwargs,
     ):
-        super().__init__(*args, before=before, after=after, **kwargs)
+        super().__post_init__(before=before, after=after)
         from . import wsc
 
         self.json_container_head = wsc.parse_list(head)
@@ -116,19 +112,15 @@ class Object(dict, Container):
 class Array(List["Value"], Container):
     """A JSON Array with style preservation"""
 
-    def __init__(
+    def __post_init__(
         self,
-        items: Iterable,
-        *,
         before: list[WSC | str] | None = None,
         after: list[WSC | str] | None = None,
         head: list[WSC | str] | None = None,
         tail: list[WSC | str] | None = None,
         trailing_comma: bool = False,
-        **kwargs,
     ):
-        list.__init__(self, items)
-        Container.__init__(
+        Container.__post_init__(
             self,
             before=before,
             after=after,
@@ -156,24 +148,20 @@ class Quote(Enum):
 class String(str, JSONType):
     """A JSON String with style preservation"""
 
-    quote: Quote
+    quote: Quote = Quote.DOUBLE
     """Quote character wrapping the string"""
 
-    linebreaks: list[int]
+    linebreaks: list[int] = []
     """Escaped line breaks positions"""
 
-    def __new__(cls, value, *args, **kwargs):
-        return super().__new__(cls, value)
-
-    def __init__(
+    def __post_init__(
         self,
-        _,
         quote: str | Quote = Quote.DOUBLE,
         linebreaks: list[int] | None = None,
         before: list[WSC | str] | None = None,
         after: list[WSC | str] | None = None,
     ):
-        super().__init__(before=before, after=after)
+        super().__post_init__(before=before, after=after)
         self.quote = Quote(quote) if isinstance(quote, str) else quote
         self.linebreaks = linebreaks or []
 
@@ -186,7 +174,7 @@ class Number(JSONType):
     Base class for all Number types and representations.
     """
 
-    prefixed: bool
+    prefixed: bool = False
     """
     Is the number prefixed by an explicit sign
     """
@@ -198,10 +186,14 @@ class Integer(Number, int):
     A JSON integer compatible with Python's `int`.
     """
 
-    def __new__(cls, value, *args, **kwargs):
-        number = int.__new__(cls, value)
-        number.prefixed = kwargs.get("prefixed", False)
-        return number
+    def __post_init__(
+        self,
+        prefixed: bool = False,
+        before: list[WSC | str] | None = None,
+        after: list[WSC | str] | None = None,
+    ):
+        self.prefixed = prefixed
+        return super().__post_init__(before, after)
 
     def __str__(self) -> str:
         return int.__repr__(self)
@@ -224,12 +216,18 @@ class Float(Number, float):
     leading_point: bool
     significand: int | None
 
-    def __new__(cls, value, *args, **kwargs):
-        number = float.__new__(cls, value)
-        number.prefixed = kwargs.get("prefixed", False)
-        number.leading_point = kwargs.get("leading_point", False)
-        number.significand = kwargs.get("significand")
-        return number
+    def __post_init__(
+        self,
+        prefixed: bool = False,
+        leading_point: bool = False,
+        significand: int | None = None,
+        before: list[WSC | str] | None = None,
+        after: list[WSC | str] | None = None,
+    ):
+        self.prefixed = prefixed
+        self.leading_point = leading_point
+        self.significand = significand
+        return super().__post_init__(before, after)
 
     def __str__(self) -> str:
         raw = float.__repr__(self)
@@ -256,8 +254,7 @@ class Literal(JSONType, Generic[T]):
     The Python equivalent value.
     """
 
-    def __init__(self, value: T, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, value: T) -> None:
         self.value = value
 
     def __eq__(self, obj: object) -> bool:
@@ -279,11 +276,65 @@ A Key-Value pair in an [Object][kayaku.backend.types.Object]
 
 
 class TupleWithTrailingComma(Tuple[T, ...]):
-    trailing_comma: bool
+    trailing_comma: bool = False
 
-    def __new__(cls, items, *args, **kwargs):
-        # explicitly only pass value to the tuple constructor
-        return super().__new__(cls, items)
-
-    def __init__(self, items: Iterable[T], trailing_comma: bool = False):
+    def __post_init__(self, trailing_comma: bool = False):
         self.trailing_comma = trailing_comma
+
+
+@overload
+def convert(obj: dict) -> Object:
+    ...
+
+
+@overload
+def convert(obj: "list | tuple") -> Array:
+    ...
+
+
+@overload
+def convert(obj: str) -> String:
+    ...
+
+
+@overload
+def convert(obj: int) -> Integer:
+    ...
+
+
+@overload
+def convert(obj: float) -> Float:
+    ...
+
+
+@overload
+def convert(obj: "bool") -> Literal[bool]:
+    ...
+
+
+@overload
+def convert(obj: None) -> Literal[None]:
+    ...
+
+
+def convert(obj: Any) -> JSONType:
+    if isinstance(obj, JSONType):
+        return obj
+    if isinstance(obj, (list, tuple)):
+        o = Array(obj)
+    elif isinstance(obj, dict):
+        o = Object(obj)
+    elif isinstance(obj, str):
+        o = String(obj)
+    elif isinstance(obj, int):
+        o = Integer(obj)
+    elif isinstance(obj, float):
+        o = Float(obj)
+    elif isinstance(obj, bool):
+        o = Literal(obj)
+    elif obj is None:
+        o = Literal(obj)
+    else:
+        raise TypeError(f"{obj} can't be automatically converted to JSONType!")
+    o.__post_init__()
+    return o

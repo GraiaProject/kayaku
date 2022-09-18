@@ -30,21 +30,23 @@ class StylePreservingTransformer(Transformer):
     @v_args(inline=True)
     def array(
         self,
-        elements: TupleWithTrailingComma[JSONType],
+        elements: TupleWithTrailingComma[Value],
         tail: list[WSC | str] | None = None,
     ) -> Array:
-        return Array(
-            elements,
+        a = Array(elements)
+        a.__post_init__(
             tail=tail,
             trailing_comma=getattr(elements, "trailing_comma", False),
         )
+        return a
 
     @v_args(inline=True)
     def value_list(self, *values) -> TupleWithTrailingComma[JSONType]:
-        return TupleWithTrailingComma[JSONType](
+        t = TupleWithTrailingComma[JSONType](
             (value for value in values if isinstance(value, JSONType)),
-            trailing_comma=isinstance(values[-1], Token),
         )
+        t.__post_init__(trailing_comma=isinstance(values[-1], Token))
+        return t
 
     @v_args(inline=True)
     def object(
@@ -59,10 +61,11 @@ class StylePreservingTransformer(Transformer):
 
     @v_args(inline=True)
     def member_list(self, *members) -> TupleWithTrailingComma[Member]:
-        return TupleWithTrailingComma[Member](
+        t = TupleWithTrailingComma[Member](
             (cast(Member, member) for member in members if isinstance(member, tuple)),
-            trailing_comma=isinstance(members[-1], Token),
         )
+        t.__post_init__(trailing_comma=isinstance(members[-1], Token))
+        return t
 
     def member(self, kv: list[Key | Value]) -> Member:
         assert len(kv) == 2

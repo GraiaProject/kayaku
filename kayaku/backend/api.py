@@ -1,5 +1,5 @@
 from importlib import import_module
-from typing import cast
+from typing import Dict, cast
 
 from .protocol import JSONModule
 

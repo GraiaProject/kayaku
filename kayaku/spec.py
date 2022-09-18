@@ -108,7 +108,7 @@ class FormattedPath:
 
     def __post_init__(self) -> None:
         if not _testing.get():
-            self.path = self.path.with_suffix(".toml")
+            self.path = self.path.with_suffix(".jsonc")  # TODO: Config
             self.path.parent.mkdir(parents=True, exist_ok=True)
             self.path.touch(exist_ok=True)
             self.path = self.path.resolve()
