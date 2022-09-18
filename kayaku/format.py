@@ -6,6 +6,7 @@ from typing import Iterable
 
 from pydantic import BaseModel
 from pydantic.fields import ModelField
+from typing_extensions import assert_never
 
 from .backend.types import (
     WSC,
@@ -13,34 +14,73 @@ from .backend.types import (
     BlockStyleComment,
     Comment,
     Container,
-    HashStyleComment,
     JSONType,
-    LineStyleComment,
     Object,
+    String,
     WhiteSpace,
     convert,
 )
 from .doc_parse import extract_field_docs
 
 
-def format_wsc(origin: list[WSC]) -> None:
-    new: list[WSC] = []
-    origin_iter = iter(origin)
-    for wsc in origin_iter:
-        if isinstance(wsc, Comment):
-            new.append(wsc)
+def gen_comment_block(content: Iterable[str], indent: int = 0) -> list[WSC]:
+    indentation: str = " " * indent
+    return [
+        WhiteSpace(" " * indent),
+        BlockStyleComment(
+            "".join(f"\n{indentation}* {i}" for i in content) + f"\n{indentation}"
+        ),
+        WhiteSpace("\n"),
+    ]
 
-        if new and (
-            isinstance(new[-1], Comment)
-            or (isinstance(new[-1], WhiteSpace) and "\n" not in new[-1])
-        ):
-            new.append(WhiteSpace("\n"))
+
+def clean_comment(comment: str) -> list[str]:
+    res = []
+    for i in inspect.cleandoc(comment).splitlines():
+        if i[:2] == "* ":
+            res.append(i[2:])
+        elif i == "*":
+            res.append("")
+        else:
+            res.append(i)
+    return res
+
+
+def format_heading(origin: list[WSC], indent: int) -> list[WSC]:
+    while origin and isinstance(origin[-1], WhiteSpace):
+        origin.pop()
+    i = 0
+    while i < len(origin) and isinstance(origin[i], WhiteSpace):
+        i += 1
+    new: list[WSC] = []
+    for i in origin:
+        if isinstance(i, BlockStyleComment):
+            new.extend(gen_comment_block(clean_comment(i), indent=indent))
+    return new
+
+
+def format_json_before(origin: list[WSC], indent: int) -> None:
+    indentation: WhiteSpace = WhiteSpace(" " * indent)
+    new: list[WSC] = [WhiteSpace("\n")] + format_heading(origin, indent)
+    if new[-1] != indentation:
+        new.append(indentation)
+    origin.clear()
+    origin.extend(new)
+
+
+def format_json_after(origin: list[WSC], indent: int) -> None:
+    indentation: WhiteSpace = WhiteSpace(" " * indent)
+    new: list[WSC] = format_heading(origin, indent) + [WhiteSpace("\n"), indentation]
+    if new[-1] != indentation:
+        new.append(indentation)
     origin.clear()
     origin.extend(new)
 
 
 def _parse_wsc(wsc_iter: Iterable[WSC]) -> set[str]:
-    return {str(wsc).strip() for wsc in wsc_iter if isinstance(wsc, Comment)}
+    return {
+        "\n".join(clean_comment(wsc)) for wsc in wsc_iter if isinstance(wsc, Comment)
+    }
 
 
 def _collect_comments(obj: JSONType) -> set[str]:
@@ -63,61 +103,84 @@ def _collect_comments(obj: JSONType) -> set[str]:
     return res
 
 
-def _format_exist(
+def gen_field_doc(field: ModelField, doc: str | None) -> str:
+    type_repr = f"@type: {dict(field.__repr_args__())['type']}"
+    return f"{inspect.cleandoc(doc)}\n\n{type_repr}" if doc else type_repr
+
+
+def format_exist(
     fields: dict[str, tuple[ModelField, str | None]],
     container: Object,
 ) -> None:
     for k, v in list(container.items()):
         if k in fields:
             field, doc = fields.pop(k)
-            conv_v = convert(v)
+            k: String = convert(k)
+            conv_v: JSONType = convert(v)
             if conv_v is not v:
                 container[k] = conv_v
-            exclude = _collect_comments(conv_v)
-            type_repr = f"type: {dict(field.__repr_args__())['type']}"
-            if type_repr not in exclude:
-                conv_v.json_after.append(
-                    LineStyleComment(type_repr)
-                )  # TODO: format choice
-
-            if doc and (d := inspect.cleandoc(doc)) not in exclude:
-                conv_v.json_after.append(BlockStyleComment(d))
-            format_wsc(conv_v.json_after)
+            exclude = _collect_comments(k)
+            if (d := gen_field_doc(field, doc)) not in exclude:
+                k.json_before.append(BlockStyleComment(d))
 
 
-def _format_not_exist(
+def format_not_exist(
     fields: dict[str, tuple[ModelField, str | None]],
     container: Object,
 ) -> None:
     exclude = _collect_comments(container)
     for k, (field, doc) in fields.items():
-        type_comment = f"type: {dict(field.__repr_args__())['type']}"
-        if not field.required:
-            v = convert(
-                field.default.dict(by_alias=True)
-                if isinstance(field.default, BaseModel)
-                else field.default
-            )
-            container[k] = v
-            if type_comment not in exclude:
-                v.json_after.append(LineStyleComment(type_comment))
-            format_wsc(v.json_after)
-            if doc and (d := inspect.cleandoc(doc)) not in exclude:
-                v.json_after.append(BlockStyleComment(d))
-        else:
-            hint = LineStyleComment(
-                f'"{k}": ... # {type_comment}'
-            )  # TODO: format choice
-            if hint not in exclude:
-                container.json_container_tail.append(hint)
-            if doc and (d := inspect.cleandoc(doc)) not in exclude:
-                container.json_container_tail.append(BlockStyleComment(d))
-        format_wsc(container.json_container_tail)
+        k = convert(k)
+        v = convert(
+            field.default.dict(by_alias=True)
+            if isinstance(field.default, BaseModel)
+            else field.default
+        )
+        container[k] = v
+        if (d := gen_field_doc(field, doc)) not in exclude:
+            k.json_before.append(BlockStyleComment(d))
 
 
 def format_with_model(container: Object, model: type[BaseModel]) -> None:
     if not isinstance(container, Object):
         raise TypeError(f"{container} is not a json object.")
     fields: dict[str, tuple[ModelField, str | None]] = extract_field_docs(model)
-    _format_exist(fields, container)
-    _format_not_exist(fields, container)
+    format_exist(fields, container)
+    format_not_exist(fields, container)
+
+
+def prettify(origin: Container, layer: int = 0, indent: int = 4) -> Container:
+    layer += 1
+    if isinstance(origin, Object):
+        v = None
+        for k, v in list(origin.items()):
+            if not isinstance(k, JSONType):
+                k = convert(k)
+            if isinstance(v, (dict, list, tuple)):
+                v = convert(v)
+            if not v.json_before:
+                v.json_before.append(WhiteSpace(" "))
+            if isinstance(v, Container):
+                prettify(v, layer, indent)
+            format_json_before(k.json_before, layer * indent)
+            origin[k] = v
+        if v is not None:
+            format_json_after(v.json_after, (layer - 1) * indent)
+    elif isinstance(origin, Array):
+        new: Array = Array()
+        v = None
+        for i in origin:
+            v = convert(i)
+            new.append(v)
+            if isinstance(v, Container):
+                prettify(v, layer, indent)
+            format_json_before(v.json_before, layer * indent)
+            v.json_after = []
+        if v is not None:
+            format_json_after(v.json_after, (layer - 1) * indent)
+        origin.clear()
+        origin.extend(new)
+    else:
+        raise TypeError
+    layer -= 1
+    return origin

@@ -282,6 +282,9 @@ class TupleWithTrailingComma(Tuple[T, ...]):
         self.trailing_comma = trailing_comma
 
 
+JSONType_T = TypeVar("JSONType_T", bound=JSONType)
+
+
 @overload
 def convert(obj: dict) -> Object:
     ...
@@ -314,6 +317,11 @@ def convert(obj: "bool") -> Literal[bool]:
 
 @overload
 def convert(obj: None) -> Literal[None]:
+    ...
+
+
+@overload
+def convert(obj: JSONType_T) -> JSONType_T:
     ...
 
 

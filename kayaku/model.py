@@ -3,6 +3,8 @@ from typing import Any, Tuple, Type, TypeVar, Union, cast
 
 from pydantic import BaseConfig, BaseModel, Extra
 
+from kayaku.format import prettify
+
 
 class ConfigModel(BaseModel):
     def __init_subclass__(cls, domain: str) -> None:
@@ -54,4 +56,9 @@ def save(model: Union[T_Model, Type[T_Model]]) -> None:
 
     inst: ConfigModel = _Reg.model_map[model] if isinstance(model, type) else model
     fmt_path = _Reg.model_path[inst.__class__]
-    fmt_path.path.write_text(json5.dumps(inst.dict(by_alias=True)), "utf-8")
+    document = json5.loads(fmt_path.path.read_text("utf-8"))
+    container = document
+    for sect in fmt_path.section:
+        container = container.setdefault(sect, {})
+    container.update(inst.dict(by_alias=True))
+    fmt_path.path.write_text(json5.dumps(prettify(document)), "utf-8")

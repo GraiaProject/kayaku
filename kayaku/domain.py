@@ -53,6 +53,7 @@ def _bootstrap():
 
 def _bootstrap_files():
     from .backend.api import json5
+    from .format import prettify
 
     for path, sect_map in file_map.items():
         document = json5.loads(path.read_text(encoding="utf-8") or "{}")
@@ -68,7 +69,7 @@ def _bootstrap_files():
                     failed.append(e)
             for cls in classes:
                 format_with_model(container, cls)
-        path.write_text(json5.dumps(document), encoding="utf-8")
+        path.write_text(json5.dumps(prettify(document)), encoding="utf-8")
         if failed:
             raise ValueError(f"{len(failed)} models failed to validate.", failed)
 
