@@ -1,0 +1,88 @@
+value: wsc__wscs raw_value wsc__wscs
+?raw_value: object_with_trailing
+            | array_with_trailing
+            | string
+            | number
+            | json__literal
+
+!array_with_trailing: "[" [value ("," value)* ","?] wsc__wscs "]"
+
+!object_with_trailing: "{" [member ("," member)* ","?] wsc__wscs "}"
+// NOTE: LALR seems to be bad with nested parsing...
+
+member: key ":" value
+
+
+HEX: HEXDIGIT+
+
+HEXNUMBER: "0" ("x"|"X") HEX
+
+SIGNED_HEXNUMBER.2: (["+"|"-"] HEXNUMBER)
+
+number: SIGNED_HEXNUMBER | SIGNED_NUMBER 
+
+SIGNED_NUMBER: DECIMAL_FLOAT | "+Infinity" | "Infinity" | "-Infinity" | "+NaN" | "NaN" | "-NaN"
+
+CHAR_ESCAPE: "\\" ("'"|"\""|"\\"|"b"|"f"|"n"|"r"|"t"|"v"|"0"|"/")
+HEX_ESCAPE: "\\x" HEXDIGIT~2
+UNICODE_ESCAPE: "\\u" HEXDIGIT~4
+ESCAPE_SEQUENCE: CHAR_ESCAPE | HEX_ESCAPE | UNICODE_ESCAPE
+LINE_CONTINUATION: "\\" ("\u000A"|"\u000D"|"\u2028"|"\u2029")
+
+SINGLE_QUOTE_SOURCE_CHAR: /[^'\\\u000A\u000D\u2028\u2029]/
+SINGLE_QUOTE_CHAR: SINGLE_QUOTE_SOURCE_CHAR | ESCAPE_SEQUENCE | LINE_CONTINUATION
+SINGLE_QUOTE_CHARS: SINGLE_QUOTE_CHAR+
+single_quote_string: "'" [SINGLE_QUOTE_CHARS] "'"
+
+DOUBLE_QUOTE_SOURCE_CHAR: /[^"\\\u000A\u000D\u2028\u2029]/
+DOUBLE_QUOTE_CHAR: DOUBLE_QUOTE_SOURCE_CHAR | ESCAPE_SEQUENCE | LINE_CONTINUATION
+DOUBLE_QUOTE_CHARS: DOUBLE_QUOTE_CHAR+
+double_quote_string: "\"" [DOUBLE_QUOTE_CHARS] "\""
+
+string : double_quote_string | single_quote_string
+key : wsc__wscs (string | IDENTIFIER_NAME) wsc__wscs
+
+// https://262.ecma-international.org/5.1/#sec-7.6
+// "Identifier Part": start
+
+
+IDENTIFIER_NAME: IDENTIFIER_START IDENTIFIER_PART*
+
+IDENTIFIER_START: UNICODE_LETTER
+                | "$"
+                | "_"
+                | UNICODE_ESCAPE
+
+IDENTIFIER_PART: UNICODE_LETTER
+                | "$"
+                | "_"
+                | UNICODE_COMBINING_MARK
+                | UNICODE_DIGIT
+                | UNICODE_CONNECTOR_PUNCTUATION
+                | ZWNJ
+                | ZNJ
+                | UNICODE_ESCAPE
+
+ZWNJ: "\u200C"
+ZNJ:  "\u200D"
+
+UNICODE_LETTER: /[\p{Lu}\p{Ll}\p{Lt}\p{Lm}\p{Lo}\p{Nl}]/
+
+//any character in the Unicode categories “Uppercase letter (Lu)”, “Lowercase letter (Ll)”, “Titlecase letter (Lt)”, “Modifier letter (Lm)”, “Other letter (Lo)”, or “Letter number (Nl)”.
+
+UNICODE_COMBINING_MARK: /[\p{Mn}\p{Mc}]/
+
+UNICODE_DIGIT: /[\p{Nd}]/
+
+UNICODE_CONNECTOR_PUNCTUATION: /[\p{Pc}]/
+
+// "Identifier Part": end
+
+%import common.HEXDIGIT
+%import common.ESCAPED_STRING
+%import common.LETTER
+%import common.DIGIT
+%import common.SIGNED_NUMBER -> DECIMAL_FLOAT
+
+%import .json.literal -> json__literal
+%import .wsc.wscs -> wsc__wscs

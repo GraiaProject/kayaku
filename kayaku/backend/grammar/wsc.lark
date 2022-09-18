@@ -1,0 +1,20 @@
+wscs: wsc*
+?wsc: CPP_COMMENT | C_COMMENT | WS
+
+COMMENT : CPP_COMMENT | C_COMMENT
+WSC: WS | COMMENT
+
+
+wschs: wsch*
+?wsch: CPP_COMMENT | C_COMMENT | SH_COMMENT | WS
+
+ws: WS*
+
+%import common.WS_INLINE
+%import common.NEWLINE
+%import common.WS
+%import common.CPP_COMMENT
+%import common.C_COMMENT
+%import common.SH_COMMENT
+
+

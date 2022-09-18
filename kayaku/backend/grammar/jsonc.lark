@@ -1,0 +1,20 @@
+value: wsc__wscs raw_value wsc__wscs
+?raw_value: object
+        | array
+        | json__string
+        | json__number
+        | json__literal
+
+array: "[" [value_list] wsc__wscs "]"
+!value_list: value ("," value)* ","?
+
+object: "{" [member_list] wsc__wscs "}"
+!member_list: member ("," member)* ","?
+member: key ":" value
+
+key : wsc__wscs json__string wsc__wscs
+
+%import .json.literal -> json__literal
+%import .json.number -> json__number
+%import .json.string -> json__string
+%import .wsc.wscs -> wsc__wscs
