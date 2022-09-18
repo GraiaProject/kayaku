@@ -113,7 +113,7 @@ class JSONEncoder(protocol.Encoder):
                     wsc.encode_wsc(w) for w in getattr(obj, "json_container_head", [])
                 ),
                 ",".join(self.encode_pair(k, v) for k, v in obj.items()),
-                "," if getattr(obj, "json_container_trailing_coma", False) else "",
+                "," if getattr(obj, "json_container_trailing_comma", False) else "",
                 "".join(
                     wsc.encode_wsc(w) for w in getattr(obj, "json_container_tail", [])
                 ),
@@ -130,7 +130,7 @@ class JSONEncoder(protocol.Encoder):
                     wsc.encode_wsc(w) for w in getattr(obj, "json_container_head", [])
                 ),
                 ",".join(self.encode(item) for item in obj),
-                "," if getattr(obj, "json_container_trailing_coma", False) else "",
+                "," if getattr(obj, "json_container_trailing_comma", False) else "",
                 "".join(
                     wsc.encode_wsc(w) for w in getattr(obj, "json_container_tail", [])
                 ),

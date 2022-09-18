@@ -104,7 +104,7 @@ class JSON5Transformer(StylePreservingTransformer):
     @staticmethod
     def _set_trail(obj: Container, children: list) -> None:
         obj.json_container_tail = children[-2]
-        obj.json_container_trailing_coma = isinstance(children[-3], Token)
+        obj.json_container_trailing_comma = isinstance(children[-3], Token)
 
     def object_with_trailing(self, children: list) -> Any:
         o = Object(cast(Member, c) for c in children if isinstance(c, tuple))

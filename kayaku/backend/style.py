@@ -17,7 +17,7 @@ from .types import (
     Key,
     Member,
     Object,
-    TupleWithTrailingComa,
+    TupleWithTrailingComma,
     Value,
 )
 
@@ -30,24 +30,26 @@ class StylePreservingTransformer(Transformer):
     @v_args(inline=True)
     def array(
         self,
-        elements: TupleWithTrailingComa[JSONType],
+        elements: TupleWithTrailingComma[JSONType],
         tail: list[WSC | str] | None = None,
     ) -> Array:
         return Array(
-            elements, tail=tail, trailing_coma=getattr(elements, "trailing_coma", False)
+            elements,
+            tail=tail,
+            trailing_comma=getattr(elements, "trailing_comma", False),
         )
 
     @v_args(inline=True)
-    def value_list(self, *values) -> TupleWithTrailingComa[JSONType]:
-        return TupleWithTrailingComa[JSONType](
+    def value_list(self, *values) -> TupleWithTrailingComma[JSONType]:
+        return TupleWithTrailingComma[JSONType](
             (value for value in values if isinstance(value, JSONType)),
-            trailing_coma=isinstance(values[-1], Token),
+            trailing_comma=isinstance(values[-1], Token),
         )
 
     @v_args(inline=True)
     def object(
         self,
-        members: TupleWithTrailingComa[Member],
+        members: TupleWithTrailingComma[Member],
         tail: list[WSC | str] | None = None,
         last=None,
     ) -> Object:
@@ -56,10 +58,10 @@ class StylePreservingTransformer(Transformer):
         return o
 
     @v_args(inline=True)
-    def member_list(self, *members) -> TupleWithTrailingComa[Member]:
-        return TupleWithTrailingComa[Member](
+    def member_list(self, *members) -> TupleWithTrailingComma[Member]:
+        return TupleWithTrailingComma[Member](
             (cast(Member, member) for member in members if isinstance(member, tuple)),
-            trailing_coma=isinstance(members[-1], Token),
+            trailing_comma=isinstance(members[-1], Token),
         )
 
     def member(self, kv: list[Key | Value]) -> Member:

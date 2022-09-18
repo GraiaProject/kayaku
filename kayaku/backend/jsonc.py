@@ -4,7 +4,7 @@ This module provides supprot for the `JSONC` file format
 This is a format introduced by
 [github/Microsoft in VSCode](https://code.visualstudio.com/docs/languages/json#_json-with-comments).
 This is basically standard JSON with both line and block comments
-supports as well as optionnal trailing coma support.
+supports as well as optionnal trailing comma support.
 """
 from __future__ import annotations
 

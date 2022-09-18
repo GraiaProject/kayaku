@@ -50,8 +50,8 @@ class Container(JSONType):
     """Whitespaces and comments sequence in the head of the container."""
     json_container_tail: list[WSC]
     """Whitespaces and comments sequence in the tail of the container."""
-    json_container_trailing_coma: bool
-    """Wether this container have a trailing coma or not."""
+    json_container_trailing_comma: bool
+    """Wether this container have a trailing comma or not."""
 
     def __init__(
         self,
@@ -60,7 +60,7 @@ class Container(JSONType):
         after: list[WSC | str] | None = None,
         head: list[WSC | str] | None = None,
         tail: list[WSC | str] | None = None,
-        trailing_coma: bool = False,
+        trailing_comma: bool = False,
         **kwargs,
     ):
         super().__init__(*args, before=before, after=after, **kwargs)
@@ -68,7 +68,7 @@ class Container(JSONType):
 
         self.json_container_head = wsc.parse_list(head)
         self.json_container_tail = wsc.parse_list(tail)
-        self.json_container_trailing_coma = trailing_coma
+        self.json_container_trailing_comma = trailing_comma
 
 
 class WhiteSpace(str):
@@ -124,7 +124,7 @@ class Array(List["Value"], Container):
         after: list[WSC | str] | None = None,
         head: list[WSC | str] | None = None,
         tail: list[WSC | str] | None = None,
-        trailing_coma: bool = False,
+        trailing_comma: bool = False,
         **kwargs,
     ):
         list.__init__(self, items)
@@ -134,7 +134,7 @@ class Array(List["Value"], Container):
             after=after,
             head=head,
             tail=tail,
-            trailing_coma=trailing_coma,
+            trailing_comma=trailing_comma,
         )
 
 
@@ -278,12 +278,12 @@ A Key-Value pair in an [Object][kayaku.backend.types.Object]
 """
 
 
-class TupleWithTrailingComa(Tuple[T, ...]):
-    trailing_coma: bool
+class TupleWithTrailingComma(Tuple[T, ...]):
+    trailing_comma: bool
 
     def __new__(cls, items, *args, **kwargs):
         # explicitly only pass value to the tuple constructor
         return super().__new__(cls, items)
 
-    def __init__(self, items: Iterable[T], trailing_coma: bool = False):
-        self.trailing_coma = trailing_coma
+    def __init__(self, items: Iterable[T], trailing_comma: bool = False):
+        self.trailing_comma = trailing_comma
