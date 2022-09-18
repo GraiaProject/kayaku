@@ -154,15 +154,16 @@ def prettify(origin: Container, layer: int = 0, indent: int = 4) -> Container:
     if isinstance(origin, Object):
         v = None
         for k, v in list(origin.items()):
-            if not isinstance(k, JSONType):
-                k = convert(k)
-            if isinstance(v, (dict, list, tuple)):
-                v = convert(v)
+            k = convert(k)
+            v = convert(v)
             if not v.json_before:
                 v.json_before.append(WhiteSpace(" "))
             if isinstance(v, Container):
                 prettify(v, layer, indent)
             format_json_before(k.json_before, layer * indent)
+            del origin[
+                k
+            ]  # this is required to overwrite with the one containing metadata.
             origin[k] = v
         if v is not None:
             format_json_after(v.json_after, (layer - 1) * indent)
