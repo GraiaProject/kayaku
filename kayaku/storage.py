@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextvars import ContextVar
+
 from .spec import FormattedPath, PathSpec, SourceSpec
 
 
@@ -61,12 +63,9 @@ class _PrefixNode:
                     return spec, formatted
 
 
-_root = _PrefixNode()
-
-
-def insert(src: SourceSpec, path: PathSpec, *, _root=_root) -> None:
+def insert(src: SourceSpec, path: PathSpec) -> None:
     prefix, suffix = src.prefix, src.suffix
-    target_nd = _root.insert(prefix).insert(list(reversed(suffix)))
+    target_nd = _root.get().insert(prefix).insert(list(reversed(suffix)))
     if target_nd.bound:
         raise ValueError(
             f"{'.'.join(prefix + ['*'] + suffix)} is already bound to {target_nd.bound}"
@@ -74,7 +73,10 @@ def insert(src: SourceSpec, path: PathSpec, *, _root=_root) -> None:
     target_nd.bound = (src, path)
 
 
-def lookup(domains: list[str], *, _root=_root) -> FormattedPath:
-    if res := _root.lookup(domains):
+def lookup(domains: list[str]) -> FormattedPath:
+    if res := _root.get().lookup(domains):
         return res[1]
     raise ValueError(f"Unable to lookup {'.'.join(domains)}")
+
+
+_root: ContextVar[_PrefixNode] = ContextVar("kayaku.__root__", default=_PrefixNode())

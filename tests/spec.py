@@ -8,6 +8,7 @@ from kayaku.spec import (
     PathSpec,
     SectionSpec,
     SourceSpec,
+    _testing,
     parse_path,
     parse_source,
 )
@@ -34,6 +35,7 @@ def test_parse_spec_err():
 
 
 def test_format_path_spec():
+    _testing.set(True)
     assert parse_path("./config/modules/{}:config.{**}.{}.mock").format(
         ["a", "b", "c", "d"]
     ) == FormattedPath(Path("./config/modules/a"), ["config", "b", "c", "d", "mock"])

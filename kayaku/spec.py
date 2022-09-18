@@ -3,6 +3,7 @@ from __future__ import annotations
 import enum
 import re
 from contextlib import suppress
+from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, cast
@@ -97,16 +98,20 @@ class PathSpec:
         return FormattedPath(Path(*fmt_path), fmt_sect)
 
 
+_testing: ContextVar[bool] = ContextVar("kayaku.__testing__", default=False)
+
+
 @dataclass
 class FormattedPath:
     path: Path
     section: list[str]
 
     def __post_init__(self) -> None:
-        self.path = self.path.with_suffix(".toml")
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.touch(exist_ok=True)
-        self.path = self.path.resolve()
+        if not _testing.get():
+            self.path = self.path.with_suffix(".toml")
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            self.path.touch(exist_ok=True)
+            self.path = self.path.resolve()
 
 
 def parse_path(spec: str) -> PathSpec:

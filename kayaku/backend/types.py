@@ -7,7 +7,7 @@ Most of the time you won't have to instanciate them manually.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Generic, Iterable, List, OrderedDict, Tuple, TypeVar, Union
+from typing import Generic, Iterable, List, Tuple, TypeVar, Union
 
 from typing_extensions import TypeAlias
 
@@ -107,7 +107,7 @@ class HashStyleComment(Comment):
     pass
 
 
-class Object(OrderedDict, Container):
+class Object(dict, Container):
     """A JSON Object with order and style preservation"""
 
     pass
