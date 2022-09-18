@@ -14,7 +14,9 @@ from .backend.types import (
     BlockStyleComment,
     Comment,
     Container,
+    HashStyleComment,
     JSONType,
+    LineStyleComment,
     Object,
     String,
     WhiteSpace,
@@ -26,7 +28,7 @@ from .doc_parse import extract_field_docs
 def gen_comment_block(content: Iterable[str], indent: int = 0) -> list[WSC]:
     indentation: str = " " * indent
     return [
-        WhiteSpace(" " * indent),
+        WhiteSpace(indentation),
         BlockStyleComment(
             "".join(f"\n{indentation}* {i}" for i in content) + f"\n{indentation}"
         ),
@@ -47,15 +49,12 @@ def clean_comment(comment: str) -> list[str]:
 
 
 def format_heading(origin: list[WSC], indent: int) -> list[WSC]:
-    while origin and isinstance(origin[-1], WhiteSpace):
-        origin.pop()
-    i = 0
-    while i < len(origin) and isinstance(origin[i], WhiteSpace):
-        i += 1
     new: list[WSC] = []
     for i in origin:
         if isinstance(i, BlockStyleComment):
             new.extend(gen_comment_block(clean_comment(i), indent=indent))
+        elif isinstance(i, Comment):
+            new.extend([WhiteSpace(" " * (indent if new else 1)), i, WhiteSpace("\n")])
     return new
 
 
@@ -161,9 +160,8 @@ def prettify(origin: Container, layer: int = 0, indent: int = 4) -> Container:
             if isinstance(v, Container):
                 prettify(v, layer, indent)
             format_json_before(k.json_before, layer * indent)
-            del origin[
-                k
-            ]  # this is required to overwrite with the one containing metadata.
+            del origin[k]
+            # this is required to overwrite with the one containing metadata.
             origin[k] = v
         if v is not None:
             format_json_after(v.json_after, (layer - 1) * indent)

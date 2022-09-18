@@ -109,7 +109,10 @@ class Object(dict, Container):
     pass
 
 
-class Array(List["Value"], Container):
+T = TypeVar("T")
+
+
+class Array(List[T], Container):
     """A JSON Array with style preservation"""
 
     def __post_init__(

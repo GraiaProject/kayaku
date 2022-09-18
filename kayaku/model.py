@@ -1,9 +1,10 @@
 import inspect
-from typing import Any, Tuple, Type, TypeVar, Union, cast
+from typing import Tuple, Type, TypeVar, Union, cast
 
 from pydantic import BaseConfig, BaseModel, Extra
 
-from kayaku.format import prettify
+from .format import prettify
+from .utils import update
 
 
 class ConfigModel(BaseModel):
@@ -60,5 +61,5 @@ def save(model: Union[T_Model, Type[T_Model]]) -> None:
     container = document
     for sect in fmt_path.section:
         container = container.setdefault(sect, {})
-    container.update(inst.dict(by_alias=True))
+    update(container, inst.dict(by_alias=True))
     fmt_path.path.write_text(json5.dumps(prettify(document)), "utf-8")
