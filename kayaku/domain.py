@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import ClassVar, Dict, Tuple, Type
+from typing import Any, ClassVar, Dict, Tuple, Type
 
 import pydantic
 
@@ -58,7 +58,7 @@ def _bootstrap_files():
     for path, sect_map in file_map.items():
         document = json5.loads(path.read_text(encoding="utf-8") or "{}")
         failed: list[pydantic.ValidationError] = []
-        schemas: dict = {"$schema": "http://json-schema.org/schema"}
+        schemas: dict[Any, Any] = {"$schema": "http://json-schema.org/schema"}
         for sect, classes in sect_map.items():
             container = document
             schema_store = schemas
@@ -72,7 +72,9 @@ def _bootstrap_files():
                     failed.append(e)
             for cls in classes:
                 format_with_model(container, cls)
-                schema_store.update(cls.schema(by_alias=True))
+                schema_store.setdefault("properties", {}).update(
+                    cls.schema(by_alias=True)["properties"]
+                )
         schema_path = path.with_suffix(".schema.json")
         schema_path.write_text(json5.dumps(schemas), encoding="utf-8")
         document["$schema"] = schema_path.as_uri()

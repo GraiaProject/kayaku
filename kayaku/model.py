@@ -3,6 +3,7 @@ from typing import Tuple, Type, TypeVar, Union, cast
 
 from pydantic import BaseConfig, BaseModel, Extra
 
+from .doc_parse import store_field_description
 from .format import prettify
 from .utils import update
 
@@ -35,6 +36,7 @@ class ConfigModel(BaseModel):
             )
         else:
             _Reg.postponed.append(domain_tup)
+        store_field_description(cls)
         return super().__init_subclass__()
 
     class Config(BaseConfig):

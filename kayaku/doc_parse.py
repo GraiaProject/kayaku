@@ -16,9 +16,9 @@ def cleanup_src(src: str) -> str:
     return "\n".join(lines)
 
 
-def extract_field_docs(
+def store_field_description(
     cls: type[BaseModel],
-) -> dict[str, tuple[ModelField, str | None]]:
+) -> None:
     node: ast.ClassDef = cast(
         ast.ClassDef, ast.parse(cleanup_src(inspect.getsource(cls))).body[0]
     )
@@ -40,5 +40,4 @@ def extract_field_docs(
             and isinstance((doc_const := doc_expr.value), ast.Constant)
             and isinstance(doc_string := doc_const.value, str)
         ):
-            doc_store[name] = doc_string
-    return {k: (v, doc_store.get(k)) for k, v in cls.__fields__.items()}
+            cls.__fields__[name].field_info.description = inspect.cleandoc(doc_string)

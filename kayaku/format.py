@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-import contextlib
 import inspect
 from typing import Iterable
 
 from pydantic import BaseModel
 from pydantic.fields import ModelField
-from typing_extensions import assert_never
 
 from .backend.types import (
     WSC,
@@ -14,15 +12,14 @@ from .backend.types import (
     BlockStyleComment,
     Comment,
     Container,
-    HashStyleComment,
     JSONType,
-    LineStyleComment,
     Object,
     String,
     WhiteSpace,
     convert,
 )
-from .doc_parse import extract_field_docs
+
+# TODO: complete JSON5 formatting
 
 
 def gen_comment_block(content: Iterable[str], indent: int = 0) -> list[WSC]:
@@ -104,7 +101,7 @@ def _collect_comments(obj: JSONType) -> set[str]:
 
 def gen_field_doc(field: ModelField, doc: str | None) -> str:
     type_repr = f"@type: {dict(field.__repr_args__())['type']}"
-    return f"{inspect.cleandoc(doc)}\n\n{type_repr}" if doc else type_repr
+    return f"{doc}\n\n{type_repr}" if doc else type_repr
 
 
 def format_exist(
@@ -143,7 +140,9 @@ def format_not_exist(
 def format_with_model(container: Object, model: type[BaseModel]) -> None:
     if not isinstance(container, Object):
         raise TypeError(f"{container} is not a json object.")
-    fields: dict[str, tuple[ModelField, str | None]] = extract_field_docs(model)
+    fields: dict[str, tuple[ModelField, str | None]] = {
+        k: (f, f.field_info.description) for k, f in model.__fields__.items()
+    }
     format_exist(fields, container)
     format_not_exist(fields, container)
 
