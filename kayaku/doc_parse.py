@@ -5,7 +5,6 @@ import inspect
 from typing import cast
 
 from pydantic import BaseModel
-from pydantic.fields import ModelField
 
 
 def cleanup_src(src: str) -> str:

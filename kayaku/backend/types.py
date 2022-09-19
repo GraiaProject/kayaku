@@ -106,7 +106,11 @@ class HashStyleComment(Comment):
 class Object(dict, Container):
     """A JSON Object with order and style preservation"""
 
-    pass
+    def __repr__(self) -> str:
+        if attrs := getattr(self, "__dict__"):
+            kwargs = ", ".join(f"{k}={v}" for k, v in attrs.items())
+            return f"{self.__class__.__name__}({super().__repr__()}, {kwargs})"
+        return f"{self.__class__.__name__}({super().__repr__()})"
 
 
 T = TypeVar("T")
@@ -132,10 +136,21 @@ class Array(List[T], Container):
             trailing_comma=trailing_comma,
         )
 
+    def __repr__(self) -> str:
+        if attrs := getattr(self, "__dict__"):
+            kwargs = ", ".join(f"{k}={v}" for k, v in attrs.items())
+            return f"{self.__class__.__name__}({super().__repr__()}, {kwargs})"
+        return f"{self.__class__.__name__}({super().__repr__()})"
+
 
 class Identifier(str, JSONType):
     "A quoteless string without special characters"
-    pass
+
+    def __repr__(self) -> str:
+        if attrs := getattr(self, "__dict__"):
+            kwargs = ", ".join(f"{k}={v}" for k, v in attrs.items())
+            return f"{self.__class__.__name__}({super().__repr__()}, {kwargs})"
+        return f"{self.__class__.__name__}({super().__repr__()})"
 
 
 Ident = Identifier
@@ -168,6 +183,12 @@ class String(str, JSONType):
         self.quote = Quote(quote) if isinstance(quote, str) else quote
         self.linebreaks = linebreaks or []
 
+    def __repr__(self) -> str:
+        if attrs := getattr(self, "__dict__"):
+            kwargs = ", ".join(f"{k}={v}" for k, v in attrs.items())
+            return f"{self.__class__.__name__}({self.quote.value}{self}{self.quote.value}, {kwargs})"
+        return f"{self.__class__.__name__}({super().__repr__()})"
+
 
 Key: TypeAlias = "String | Identifier | str"
 
@@ -181,7 +202,7 @@ class Number(JSONType):
     """
     Is the number prefixed by an explicit sign
     """
-    ...
+    __repr__ = JSONType.__repr__
 
 
 class Integer(Number, int):

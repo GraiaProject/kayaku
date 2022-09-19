@@ -47,8 +47,18 @@ class ConfigModel(BaseModel):
 T_Model = TypeVar("T_Model", bound=ConfigModel)
 
 
-def create(cls: Type[T_Model]) -> T_Model:
+def create(cls: Type[T_Model], flush: bool = False) -> T_Model:
     from .domain import _Reg
+
+    if flush:
+        from .backend.api import json5
+
+        fmt_path = _Reg.model_path[cls]
+        document = json5.loads(fmt_path.path.read_text("utf-8"))
+        container = document
+        for sect in fmt_path.section:
+            container = container[sect]
+        _Reg.model_map[cls] = cls.parse_obj(container)
 
     return cast(T_Model, _Reg.model_map[cls])
 

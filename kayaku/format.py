@@ -149,8 +149,8 @@ def format_with_model(container: Object, model: type[BaseModel]) -> None:
 
 def prettify(origin: Container, layer: int = 0, indent: int = 4) -> Container:
     layer += 1
+    v = None
     if isinstance(origin, Object):
-        v = None
         for k, v in list(origin.items()):
             k = convert(k)
             v = convert(v)
@@ -162,11 +162,8 @@ def prettify(origin: Container, layer: int = 0, indent: int = 4) -> Container:
             del origin[k]
             # this is required to overwrite with the one containing metadata.
             origin[k] = v
-        if v is not None:
-            format_json_after(v.json_after, (layer - 1) * indent)
     elif isinstance(origin, Array):
         new: Array = Array()
-        v = None
         for i in origin:
             v = convert(i)
             new.append(v)
@@ -174,11 +171,9 @@ def prettify(origin: Container, layer: int = 0, indent: int = 4) -> Container:
                 prettify(v, layer, indent)
             format_json_before(v.json_before, layer * indent)
             v.json_after = []
-        if v is not None:
-            format_json_after(v.json_after, (layer - 1) * indent)
         origin.clear()
         origin.extend(new)
-    else:
-        raise TypeError
     layer -= 1
+    if v is not None:
+        format_json_after(v.json_after, layer * indent)
     return origin
