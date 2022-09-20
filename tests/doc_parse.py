@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from kayaku.doc_parse import extract_field_docs
+from kayaku.doc_parse import store_field_description
 
 
 def test_extract_attr_docs():
@@ -11,8 +11,8 @@ def test_extract_attr_docs():
         c: int = 7
         "c document"
 
-    res = extract_field_docs(M)
-    assert {k: doc for k, (_, doc) in res.items()} == {
+    store_field_description(M)
+    assert {k: f.field_info.description for k, f in M.__fields__.items()} == {
         "a": None,
         "b": "b document",
         "c": "c document",

@@ -38,14 +38,16 @@ class JSONType:
             return f"{self.__class__.__name__}({super().__repr__()}, {kwargs})"
         return f"{self.__class__.__name__}({super().__repr__()})"
 
+    def __json_clear__(self):
+        self.json_before = []
+        self.json_after = []
+
 
 class Container(JSONType):
     """
     Base class for containers with style and metadata preservation.
     """
 
-    json_container_head: list[WSC] = []
-    """Whitespaces and comments sequence in the head of the container."""
     json_container_tail: list[WSC] = []
     """Whitespaces and comments sequence in the tail of the container."""
     json_container_trailing_comma: bool = False
@@ -55,16 +57,18 @@ class Container(JSONType):
         self,
         before: list[WSC | str] | None = None,
         after: list[WSC | str] | None = None,
-        head: list[WSC | str] | None = None,
         tail: list[WSC | str] | None = None,
         trailing_comma: bool = False,
     ):
         super().__post_init__(before=before, after=after)
         from . import wsc
 
-        self.json_container_head = wsc.parse_list(head)
         self.json_container_tail = wsc.parse_list(tail)
         self.json_container_trailing_comma = trailing_comma
+
+    def __json_clear__(self):
+        self.json_container_tail = []
+        return super().__json_clear__()
 
 
 class WhiteSpace(str):
@@ -88,62 +92,27 @@ WSC: TypeAlias = "WhiteSpace | Comment"
 class BlockStyleComment(Comment):
     """Stores a block-style comment (ie. starting with `/*` and ending with `*/`)"""
 
-    pass
-
 
 class LineStyleComment(Comment):
     """Stores a line-style comment (ie. starting with `//` and ending at the end of the current line)"""
-
-    pass
 
 
 class HashStyleComment(Comment):
     """Stores a hash-style comment (ie. starting with `#` and ending at the end of the current line)"""
 
-    pass
 
-
-class Object(dict, Container):
+class Object(Container, dict):
     """A JSON Object with order and style preservation"""
-
-    def __repr__(self) -> str:
-        if attrs := getattr(self, "__dict__"):
-            kwargs = ", ".join(f"{k}={v}" for k, v in attrs.items())
-            return f"{self.__class__.__name__}({super().__repr__()}, {kwargs})"
-        return f"{self.__class__.__name__}({super().__repr__()})"
 
 
 T = TypeVar("T")
 
 
-class Array(List[T], Container):
+class Array(Container, List[T]):
     """A JSON Array with style preservation"""
 
-    def __post_init__(
-        self,
-        before: list[WSC | str] | None = None,
-        after: list[WSC | str] | None = None,
-        head: list[WSC | str] | None = None,
-        tail: list[WSC | str] | None = None,
-        trailing_comma: bool = False,
-    ):
-        Container.__post_init__(
-            self,
-            before=before,
-            after=after,
-            head=head,
-            tail=tail,
-            trailing_comma=trailing_comma,
-        )
 
-    def __repr__(self) -> str:
-        if attrs := getattr(self, "__dict__"):
-            kwargs = ", ".join(f"{k}={v}" for k, v in attrs.items())
-            return f"{self.__class__.__name__}({super().__repr__()}, {kwargs})"
-        return f"{self.__class__.__name__}({super().__repr__()})"
-
-
-class Identifier(str, JSONType):
+class Identifier(JSONType, str):
     "A quoteless string without special characters"
 
     def __repr__(self) -> str:
@@ -163,7 +132,7 @@ class Quote(Enum):
     DOUBLE = '"'
 
 
-class String(str, JSONType):
+class String(JSONType, str):
     """A JSON String with style preservation"""
 
     quote: Quote = Quote.DOUBLE
