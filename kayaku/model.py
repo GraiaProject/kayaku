@@ -4,7 +4,7 @@ from typing import Tuple, Type, TypeVar, Union, cast
 from pydantic import BaseConfig, BaseModel, Extra
 
 from .doc_parse import store_field_description
-from .format import prettify
+from .pretty import Prettifier
 from .utils import update
 
 
@@ -74,4 +74,6 @@ def save(model: Union[T_Model, Type[T_Model]]) -> None:
     for sect in fmt_path.section:
         container = container.setdefault(sect, {})
     update(container, inst.dict(by_alias=True))
-    fmt_path.path.write_text(json5.dumps(prettify(document)), "utf-8")
+    fmt_path.path.write_text(
+        json5.dumps(Prettifier().prettify(document, clean=True)), "utf-8"
+    )

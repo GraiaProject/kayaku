@@ -16,22 +16,8 @@ from .backend.types import (
     JSONType,
     Object,
     String,
-    WhiteSpace,
     convert,
 )
-
-# TODO: complete JSON5 formatting
-
-
-def gen_comment_block(content: Iterable[str], indent: int = 0) -> list[WSC]:
-    indentation: str = " " * indent
-    return [
-        WhiteSpace(indentation),
-        BlockStyleComment(
-            "".join(f"\n{indentation}* {i}" for i in content) + f"\n{indentation}"
-        ),
-        WhiteSpace("\n"),
-    ]
 
 
 def clean_comment(comment: str) -> list[str]:
@@ -44,32 +30,6 @@ def clean_comment(comment: str) -> list[str]:
         else:
             res.append(i)
     return res
-
-
-def format_heading(origin: list[WSC], indent: int) -> list[WSC]:
-    new: list[WSC] = []
-    for i in origin:
-        if isinstance(i, BlockStyleComment):
-            new.extend(gen_comment_block(clean_comment(i), indent=indent))
-        elif isinstance(i, Comment):
-            new.extend([WhiteSpace(" " * (indent if new else 1)), i, WhiteSpace("\n")])
-    return new
-
-
-def format_json_before(origin: list[WSC], indent: int) -> list[WSC]:
-    indentation: WhiteSpace = WhiteSpace(" " * indent)
-    new: list[WSC] = [WhiteSpace("\n")] + format_heading(origin, indent)
-    if new[-1] != indentation:
-        new.append(indentation)
-    return new
-
-
-def format_json_after(origin: list[WSC], indent: int) -> list[WSC]:
-    indentation: WhiteSpace = WhiteSpace(" " * indent)
-    new: list[WSC] = format_heading(origin, indent) + [WhiteSpace("\n"), indentation]
-    if new[-1] != indentation:
-        new.append(indentation)
-    return new
 
 
 def _parse_wsc(wsc_iter: Iterable[WSC]) -> set[str]:
@@ -143,41 +103,3 @@ def format_with_model(container: Object, model: type[BaseModel]) -> None:
     }
     format_exist(fields, container)
     format_not_exist(fields, container)
-
-
-def prettify(origin: Container, layer: int = 0, indent: int = 4) -> Container:
-    """Prettify a JSON Value."""
-    from .backend.types import JSONType
-
-    layer += 1
-    v = None
-    logger.debug(JSONType.__repr__(origin))
-    if isinstance(origin, Object):
-        for k, v in list(origin.items()):
-            k = convert(k)
-            v = convert(v)
-            logger.debug(JSONType.__repr__(k))
-            logger.debug(JSONType.__repr__(v))
-            if not v.json_before:
-                v.json_before.append(WhiteSpace(" "))
-            if isinstance(v, Container):
-                prettify(v, layer, indent)
-            k.json_before = format_json_before(k.json_before, layer * indent)
-            del origin[k]
-            # this is required to overwrite with the one containing metadata.
-            origin[k] = v
-    elif isinstance(origin, Array):
-        new: Array = Array()
-        for i in origin:
-            v = convert(i)
-            new.append(v)
-            if isinstance(v, Container):
-                prettify(v, layer, indent)
-            v.json_before = format_json_before(v.json_before, layer * indent)
-            v.json_after = []
-        origin.clear()
-        origin.extend(new)
-    layer -= 1
-    if v is not None:
-        v.json_after = format_json_after(v.json_after, layer * indent)
-    return origin

@@ -13,7 +13,7 @@ def test_pretty_single_wrapped():
         assert json5.dumps(Prettifier().prettify(o)) == e
 
 
-def _test_pretty_single_unwrapped():
+def test_pretty_single_unwrapped():
     origin = convert({"a": "b"})
     expected_unwrapped = inspect.cleandoc(
         """\

@@ -53,7 +53,7 @@ def _bootstrap():
 
 def _bootstrap_files():
     from .backend.api import json5
-    from .format import prettify
+    from .pretty import Prettifier
 
     for path, sect_map in file_map.items():
         document = json5.loads(path.read_text(encoding="utf-8") or "{}")
@@ -78,7 +78,9 @@ def _bootstrap_files():
         schema_path = path.with_suffix(".schema.json")
         schema_path.write_text(json5.dumps(schemas), encoding="utf-8")
         document["$schema"] = schema_path.as_uri()
-        path.write_text(json5.dumps(prettify(document)), encoding="utf-8")
+        path.write_text(
+            json5.dumps(Prettifier().prettify(document, clean=True)), encoding="utf-8"
+        )
         if failed:
             raise ValueError(f"{len(failed)} models failed to validate.", failed)
 
