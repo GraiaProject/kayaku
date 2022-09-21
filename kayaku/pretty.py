@@ -22,7 +22,7 @@ from .backend.types import (
 
 T_Container = TypeVar("T_Container", Array, Object)
 
-# FIXME: Full comment preservation
+# FIXME: preserve post-item comment when no trailing comma
 
 
 class Prettifier:
@@ -63,7 +63,10 @@ class Prettifier:
 
     def gen_comment_block(self, comment: str) -> BlockStyleComment:
         res = []
-        for i in inspect.cleandoc(comment).splitlines():
+        lines: list[str] = inspect.cleandoc(comment).splitlines()
+        if len(lines) <= 1:
+            return BlockStyleComment(comment)
+        for i in lines:
             if i[:2] == "* ":
                 res.append(i[2:])
             elif i == "*":
