@@ -22,8 +22,6 @@ from .backend.types import (
 
 T_Container = TypeVar("T_Container", Array, Object)
 
-# FIXME: preserve post-item comment when no trailing comma
-
 
 class Prettifier:
     """JSON Container Prettifier.
@@ -129,6 +127,12 @@ class Prettifier:
                 return Object({k: v})
         self.layer += 1
         new_obj = Object()
+        # Preserve container tail
+        if obj and not obj.json_container_trailing_comma and (pair := obj.popitem()):
+            k, v = self.convert_key(pair[0]), convert(pair[1])
+            self.swap_tail(v, obj)
+            obj[k] = v
+
         for k, v in obj.items():
             k, v = self.convert_key(k), convert(v)
             sub_comments = self.collect_comments(k) + self.collect_comments(v)
@@ -158,6 +162,11 @@ class Prettifier:
                 return Array((v,))
         new_arr = Array()
         self.layer += 1
+        # Preserve container tail
+        if arr and not arr.json_container_trailing_comma and (v := arr.pop()):
+            v = convert(v)
+            self.swap_tail(v, arr)
+            arr.append(v)
         for v in arr:
             v: JSONType = convert(v)
             sub_comments = self.collect_comments(v)
@@ -169,6 +178,11 @@ class Prettifier:
             new_arr.append(v)
         self.layer -= 1
         return self.format_container(new_arr, arr)
+
+    def swap_tail(self, v: JSONType, obj: Array | Object) -> None:
+        if any(isinstance(wsc, Comment) for wsc in v.json_after):
+            obj.json_container_tail = v.json_after
+            v.json_after = []
 
     def prettify(
         self, container: Object | Array, clean: bool = False
