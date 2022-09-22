@@ -51,7 +51,7 @@ def create(cls: Type[T_Model], flush: bool = False) -> T_Model:
     from .domain import _Reg
 
     if flush:
-        from .backend.api import json5
+        from . import backend as json5
 
         fmt_path = _Reg.model_path[cls]
         document = json5.loads(fmt_path.path.read_text("utf-8"))
@@ -64,7 +64,7 @@ def create(cls: Type[T_Model], flush: bool = False) -> T_Model:
 
 
 def save(model: Union[T_Model, Type[T_Model]]) -> None:
-    from .backend.api import json5
+    from . import backend as json5
     from .domain import _Reg
 
     inst: ConfigModel = _Reg.model_map[model] if isinstance(model, type) else model

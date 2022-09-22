@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from .backend.types import Array, Container, Object
+from .backend.types import Array, JContainer, JObject
 
 
-def update(container: Container, data: Any):
+def update(container: JContainer, data: Any):
     if container == data:
         return
-    if isinstance(container, Object):
+    if isinstance(container, JObject):
         assert isinstance(data, dict)
         for k, v in data.items():
             if k in container and isinstance(v, (list, dict)):

@@ -13,10 +13,10 @@ from . import wsc
 from .types import (
     WSC,
     Array,
-    JSONType,
+    JObject,
+    JType,
     Key,
     Member,
-    Object,
     TupleWithTrailingComma,
     Value,
 )
@@ -41,9 +41,9 @@ class StylePreservingTransformer(Transformer):
         return a
 
     @v_args(inline=True)
-    def value_list(self, *values) -> TupleWithTrailingComma[JSONType]:
-        t = TupleWithTrailingComma[JSONType](
-            (value for value in values if isinstance(value, JSONType)),
+    def value_list(self, *values) -> TupleWithTrailingComma[JType]:
+        t = TupleWithTrailingComma[JType](
+            (value for value in values if isinstance(value, JType)),
         )
         t.__post_init__(trailing_comma=isinstance(values[-1], Token))
         return t
@@ -54,8 +54,8 @@ class StylePreservingTransformer(Transformer):
         members: TupleWithTrailingComma[Member],
         tail: list[WSC | str] | None = None,
         last=None,
-    ) -> Object:
-        o = Object(members)
+    ) -> JObject:
+        o = JObject(members)
         o.json_container_tail = wsc.parse_list(tail)
         return o
 
@@ -72,9 +72,7 @@ class StylePreservingTransformer(Transformer):
         return (cast(Key, kv[0]), cast(Value, kv[1]))
 
     @v_args(inline=True)
-    def pack_wsc(
-        self, before: list[WSC], value: JSONType, after: list[WSC]
-    ) -> JSONType:
+    def pack_wsc(self, before: list[WSC], value: JType, after: list[WSC]) -> JType:
         value.json_before = before
         value.json_after = after
         return value

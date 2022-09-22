@@ -12,15 +12,15 @@ from .backend.types import (
     BlockStyleComment,
     Comment,
     Identifier,
-    JSONType,
-    Object,
+    JObject,
+    JString,
+    JType,
     Quote,
-    String,
     WhiteSpace,
     convert,
 )
 
-T_Container = TypeVar("T_Container", Array, Object)
+T_Container = TypeVar("T_Container", Array, JObject)
 
 
 class Prettifier:
@@ -44,7 +44,7 @@ class Prettifier:
         self.layer: int = 0
 
     @staticmethod
-    def collect_comments(obj: JSONType) -> list[Comment]:
+    def collect_comments(obj: JType) -> list[Comment]:
         return [i for i in obj.json_before + obj.json_after if isinstance(i, Comment)]
 
     @staticmethod
@@ -99,16 +99,16 @@ class Prettifier:
         wsc_list.append(WhiteSpace(f"\n{indent}"))
         return wsc_list
 
-    def convert_key(self, obj: String | Identifier | str) -> String | Identifier:
+    def convert_key(self, obj: JString | Identifier | str) -> JString | Identifier:
         if self.key_quote is None:
             return convert(obj)
-        cls = String if self.key_quote else Identifier
+        cls = JString if self.key_quote else Identifier
         string = cls(obj)
         if hasattr(obj, "__dict__"):
             string.__dict__.update(obj.__dict__)
         return string
 
-    def prettify_object(self, obj: Object) -> Object:
+    def prettify_object(self, obj: JObject) -> JObject:
         """Prettify a JSON Object."""
         # Object(*(KVPair ,) container_trail)
         # KVPair(key : value)
@@ -124,9 +124,9 @@ class Prettifier:
                 k.__json_clear__()
                 v.__json_clear__()
                 v.json_before.append(WhiteSpace(" "))
-                return Object({k: v})
+                return JObject({k: v})
         self.layer += 1
-        new_obj = Object()
+        new_obj = JObject()
         # Preserve container tail
         if obj and not obj.json_container_trailing_comma and (pair := obj.popitem()):
             k, v = self.convert_key(pair[0]), convert(pair[1])
@@ -139,7 +139,7 @@ class Prettifier:
             newline = self.require_newline(k.json_before)
             k.__json_clear__()
             v.__json_clear__()
-            if isinstance(v, (Array, Object)):
+            if isinstance(v, (Array, JObject)):
                 v = self.prettify(v)
             v.json_before.append(WhiteSpace(" "))
             new_obj[k] = v
@@ -153,7 +153,7 @@ class Prettifier:
         if not arr:
             return arr
         if len(arr) == 1 and not self.unfold_single:
-            v: JSONType = convert(arr[0])
+            v: JType = convert(arr[0])
             sub_comments = self.collect_comments(v)
             if not (
                 sub_comments or (v and isinstance(v, (list, tuple, dict)))
@@ -168,26 +168,26 @@ class Prettifier:
             self.swap_tail(v, arr)
             arr.append(v)
         for v in arr:
-            v: JSONType = convert(v)
+            v: JType = convert(v)
             sub_comments = self.collect_comments(v)
             newline = self.require_newline(v.json_before)
             v.__json_clear__()
-            if isinstance(v, (Array, Object)):
+            if isinstance(v, (Array, JObject)):
                 v = self.prettify(v)
             v.json_before = self.format_wsc(sub_comments, newline)
             new_arr.append(v)
         self.layer -= 1
         return self.format_container(new_arr, arr)
 
-    def swap_tail(self, v: JSONType, obj: Array | Object) -> None:
+    def swap_tail(self, v: JType, obj: Array | JObject) -> None:
         if any(isinstance(wsc, Comment) for wsc in v.json_after):
             obj.json_container_tail = v.json_after
             v.json_after = []
 
     def prettify(
-        self, container: Object | Array, clean: bool = False
-    ) -> Object | Array:
-        if isinstance(container, Object):
+        self, container: JObject | Array, clean: bool = False
+    ) -> JObject | Array:
+        if isinstance(container, JObject):
             res = self.prettify_object(container)
         elif isinstance(container, Array):
             res = self.prettify_array(container)

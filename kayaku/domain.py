@@ -5,6 +5,8 @@ from typing import Any, ClassVar, Dict, Tuple, Type
 
 import pydantic
 
+from kayaku.backend.types import JObject
+
 from .format import format_with_model
 from .model import ConfigModel
 from .spec import FormattedPath, parse_path, parse_source
@@ -52,19 +54,17 @@ def _bootstrap():
 
 
 def _bootstrap_files():
-    from .backend.api import json5
+    from . import backend as json5
     from .pretty import Prettifier
 
     for path, sect_map in file_map.items():
         document = json5.loads(path.read_text(encoding="utf-8") or "{}")
         failed: list[pydantic.ValidationError] = []
-        schemas: dict[Any, Any] = {"$schema": "http://json-schema.org/schema"}
+        # TODO: Schema Rework
         for sect, classes in sect_map.items():
             container = document
-            schema_store = schemas
             for s in sect:
-                container = container.setdefault(s, {})
-                schema_store = container.setdefault(s, {})
+                container = container.setdefault(s, JObject())
             for cls in classes:
                 try:
                     _Reg.model_map[cls] = cls.parse_obj(container)
@@ -72,12 +72,8 @@ def _bootstrap_files():
                     failed.append(e)
             for cls in classes:
                 format_with_model(container, cls)
-                schema_store.setdefault("properties", {}).update(
-                    cls.schema(by_alias=True)["properties"]
-                )
-        schema_path = path.with_suffix(".schema.json")
-        schema_path.write_text(json5.dumps(schemas), encoding="utf-8")
-        document["$schema"] = schema_path.as_uri()
+        # schema_path = path.with_suffix(".schema.json")
+        # document["$schema"] = schema_path.as_uri()
         path.write_text(
             json5.dumps(Prettifier().prettify(document, clean=True)), encoding="utf-8"
         )

@@ -1,14 +1,16 @@
 value: wsc__wscs raw_value wsc__wscs
-?raw_value: object_with_trailing
-            | array_with_trailing
+?raw_value: object
+            | array
             | string
             | number
-            | json__literal
+            | literal
 
-!array_with_trailing: "[" [value ("," value)* ","?] wsc__wscs "]"
+!array: "[" [value ("," value)* ","?] wsc__wscs "]"
 
-!object_with_trailing: "{" [member ("," member)* ","?] wsc__wscs "}"
+!object: "{" [member ("," member)* ","?] wsc__wscs "}"
 // NOTE: LALR seems to be bad with nested parsing...
+
+!literal: "true" | "false" | "null"
 
 member: key ":" value
 
@@ -84,5 +86,4 @@ UNICODE_CONNECTOR_PUNCTUATION: /[\p{Pc}]/
 %import common.DIGIT
 %import common.SIGNED_NUMBER -> DECIMAL_FLOAT
 
-%import .json.literal -> json__literal
 %import .wsc.wscs -> wsc__wscs

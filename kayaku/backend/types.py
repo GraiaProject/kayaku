@@ -12,7 +12,7 @@ from typing import Any, Generic, Iterable, List, Tuple, TypeVar, Union, overload
 from typing_extensions import TypeAlias
 
 
-class JSONType:
+class JType:
     """
     Base class for parsed types with style and metadata preservation.
     """
@@ -43,7 +43,7 @@ class JSONType:
         self.json_after = []
 
 
-class Container(JSONType):
+class JContainer(JType):
     """
     Base class for containers with style and metadata preservation.
     """
@@ -101,18 +101,18 @@ class HashStyleComment(Comment):
     """Stores a hash-style comment (ie. starting with `#` and ending at the end of the current line)"""
 
 
-class Object(Container, dict):
+class JObject(JContainer, dict):
     """A JSON Object with order and style preservation"""
 
 
 T = TypeVar("T")
 
 
-class Array(Container, List[T]):
+class Array(JContainer, List[T]):
     """A JSON Array with style preservation"""
 
 
-class Identifier(JSONType, str):
+class Identifier(JType, str):
     "A quoteless string without special characters"
 
     def __repr__(self) -> str:
@@ -132,7 +132,7 @@ class Quote(Enum):
     DOUBLE = '"'
 
 
-class String(JSONType, str):
+class JString(JType, str):
     """A JSON String with style preservation"""
 
     quote: Quote = Quote.DOUBLE
@@ -159,10 +159,10 @@ class String(JSONType, str):
         return f"{self.__class__.__name__}({super().__repr__()})"
 
 
-Key: TypeAlias = "String | Identifier | str"
+Key: TypeAlias = "JString | Identifier | str"
 
 
-class Number(JSONType):
+class JNumber(JType):
     """
     Base class for all Number types and representations.
     """
@@ -171,10 +171,10 @@ class Number(JSONType):
     """
     Is the number prefixed by an explicit sign
     """
-    __repr__ = JSONType.__repr__
+    __repr__ = JType.__repr__
 
 
-class Integer(Number, int):
+class Integer(JNumber, int):
     """
     A JSON integer compatible with Python's `int`.
     """
@@ -201,7 +201,7 @@ class HexInteger(Integer):
         return hex(self)
 
 
-class Float(Number, float):
+class Float(JNumber, float):
     """
     A JSON float compatible with Python's `float`.
     """
@@ -237,7 +237,7 @@ AnyNumber: TypeAlias = "Integer | Float"
 T = TypeVar("T")
 
 
-class Literal(JSONType, Generic[T]):
+class JLiteral(JType, Generic[T]):
     """
     Represents a JSON Literal and wraps the equivalent value in Python.
     """
@@ -257,7 +257,7 @@ class Literal(JSONType, Generic[T]):
         return self.value.__hash__()
 
 
-Value: TypeAlias = "Object | Array | String | Number | Literal | bool | None"
+Value: TypeAlias = "JObject | Array | JString | JNumber | JLiteral | bool | None"
 """
 A type alias matching the JSON Value.
 """
@@ -275,11 +275,11 @@ class TupleWithTrailingComma(Tuple[T, ...]):
         self.trailing_comma = trailing_comma
 
 
-JSONType_T = TypeVar("JSONType_T", bound=JSONType)
+JSONType_T = TypeVar("JSONType_T", bound=JType)
 
 
 @overload
-def convert(obj: dict) -> Object:
+def convert(obj: dict) -> JObject:
     ...
 
 
@@ -289,7 +289,7 @@ def convert(obj: "list | tuple") -> Array:
 
 
 @overload
-def convert(obj: str) -> String:
+def convert(obj: str) -> JString:
     ...
 
 
@@ -304,12 +304,12 @@ def convert(obj: float) -> Float:
 
 
 @overload
-def convert(obj: "bool") -> Literal[bool]:
+def convert(obj: "bool") -> JLiteral[bool]:
     ...
 
 
 @overload
-def convert(obj: None) -> Literal[None]:
+def convert(obj: None) -> JLiteral[None]:
     ...
 
 
@@ -318,23 +318,23 @@ def convert(obj: JSONType_T) -> JSONType_T:
     ...
 
 
-def convert(obj: Any) -> JSONType:
-    if isinstance(obj, JSONType):
+def convert(obj: Any) -> JType:
+    if isinstance(obj, JType):
         return obj
     if isinstance(obj, (list, tuple)):
         o = Array(obj)
     elif isinstance(obj, dict):
-        o = Object(obj)
+        o = JObject(obj)
     elif isinstance(obj, str):
-        o = String(obj)
+        o = JString(obj)
     elif isinstance(obj, int):
         o = Integer(obj)
     elif isinstance(obj, float):
         o = Float(obj)
     elif isinstance(obj, bool):
-        o = Literal(obj)
+        o = JLiteral(obj)
     elif obj is None:
-        o = Literal(obj)
+        o = JLiteral(obj)
     else:
         raise TypeError(f"{obj} can't be automatically converted to JSONType!")
     o.__post_init__()

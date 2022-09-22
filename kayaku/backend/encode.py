@@ -1,67 +1,37 @@
-"""
-This module implements the [JSONModule protocol][kayaku.backend.protocol.JSONModule]
-for [JSON](https://www.json.org/).
-
-While [JSON](https://www.json.org/) is natively supported by Python standard library,
-the builtin module doesn't provide style preservation.
-
-This one do by returning [style preserving types][kayaku.backend.types] storing whitespaces.
-"""
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any
 
-from lark.lexer import Token
-from lark.visitors import merge_transformers, v_args
+from . import wsc
+from .style import with_style
+from .types import AnyNumber, Identifier, JLiteral, JNumber, JString  # noqa: F401
 
-from . import protocol, wsc
-from .style import StylePreservingTransformer, with_style
-from .types import Float, Integer, Literal, String  # noqa: F401
-
-
-class JSONTransformer(StylePreservingTransformer):
-    """
-    A [Transformer][lark.visitors.Transformer] for JSON
-    """
-
-    @v_args(inline=True)
-    def string(self, s):
-        return String(
-            s[1:-1]
-            .replace("\\/", "/")
-            .encode()
-            .decode("unicode_escape", "surrogatepass")
-        )
-
-    @v_args(inline=True)
-    def float_literal(self, literal: str):
-        return Float(literal)
-
-    @v_args(inline=True)
-    def number(self, num: str):
-        return Float(num) if "." in num or "e" in num else Integer(num)
-
-    @v_args(inline=True)
-    def literal(self, token: Token):
-        if token.value == "true":
-            return Literal[bool](True)
-        elif token.value == "false":
-            return Literal[bool](False)
-        elif token.value == "null":
-            return Literal[None](None)
-        raise ValueError(f"Unknown literal: {token.value}")
+ESCAPES = {
+    "\\": r"\\",
+    "\n": r"\n",
+    "\r": r"\r",
+    "\b": r"\b",
+    "\f": r"\f",
+    "\t": r"\t",
+    "\v": r"\v",
+    "\0": r"\0",
+    "\u2028": r"\\u2028",
+    "\u2029": r"\\u2029",
+}
 
 
-transformer = merge_transformers(JSONTransformer(), wsc=wsc.transformer)
+def escape_string(string: str, **escapes: str | int | None) -> str:
+    out = string.translate(str.maketrans({**escapes, **ESCAPES}))
+    if isinstance(string, JString):
+        for line_break in string.linebreaks:
+            out = out[: line_break - 1] + "\\\n" + out[line_break - 1 :]
+    return out
 
 
-class JSONEncoder(protocol.Encoder):
-    """
-    The default JSON Encoder
-    """
-
+class Encoder:
     def encode(self, obj: Any) -> str:
+        if isinstance(obj, JNumber):
+            return self.encode_number(obj)
         if isinstance(obj, bool):
             return self.encode_bool(obj)
         if isinstance(obj, str):
@@ -74,13 +44,9 @@ class JSONEncoder(protocol.Encoder):
             return self.encode_dict(obj)
         if isinstance(obj, (list, tuple)):
             return self.encode_iterable(obj)
-        if isinstance(obj, Literal):
+        if isinstance(obj, JLiteral):
             return self.encode_literal(obj)
         raise NotImplementedError(f"Unknown type: {type(obj)}")
-
-    @with_style
-    def encode_string(self, obj: str) -> str:
-        return f'"{obj}"'
 
     @with_style
     def encode_int(self, obj: int) -> str:
@@ -95,7 +61,7 @@ class JSONEncoder(protocol.Encoder):
         return "true" if obj else "false"
 
     @with_style
-    def encode_literal(self, obj: Literal) -> str:
+    def encode_literal(self, obj: JLiteral) -> str:
         if obj.value is True:
             return "true"
         if obj.value is False:
@@ -141,15 +107,22 @@ class JSONEncoder(protocol.Encoder):
     def encode_pair(self, key: str, value: Any) -> str:
         return f"{self.encode(key)}:{self.encode(value)}"
 
+    @with_style
+    def encode_number(self, obj: AnyNumber) -> str:
+        presentation: str = {
+            float("inf"): "Infinity",
+            float("-inf"): "-Infinity",
+            float("NaN"): "NaN",
+        }.get(obj, str(obj))
+        return f"+{presentation}" if obj > 0 and obj.prefixed else presentation
 
-@dataclass
-class FormatOptions:
-    trim_whitespaces: bool = False
-    keep_newlines: bool = False
-    add_end_line_return: bool = True
+    @with_style
+    def encode_string(self, obj: str) -> str:
+        if isinstance(obj, JString):
+            return f"{obj.quote.value}{escape_string(obj)}{obj.quote.value}"
+        elif isinstance(obj, Identifier):
+            return obj
+        return f'"{escape_string(obj)}"'
 
 
-# parser, loads, load, dumps, dump = protocol.factory("json", transformer, JSONEncoder, lexer="basic")
-
-
-protocol.implement("json", transformer, JSONEncoder, lexer="basic")
+encoder = Encoder()

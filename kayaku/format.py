@@ -12,10 +12,10 @@ from .backend.types import (
     Array,
     BlockStyleComment,
     Comment,
-    Container,
-    JSONType,
-    Object,
-    String,
+    JContainer,
+    JObject,
+    JString,
+    JType,
     convert,
 )
 
@@ -38,21 +38,21 @@ def _parse_wsc(wsc_iter: Iterable[WSC]) -> set[str]:
     }
 
 
-def _collect_comments(obj: JSONType) -> set[str]:
+def _collect_comments(obj: JType) -> set[str]:
     res: set[str] = set()
     res.update(_parse_wsc(obj.json_before))
     res.update(_parse_wsc(obj.json_after))
-    if isinstance(obj, Container):
+    if isinstance(obj, JContainer):
         res.update(_parse_wsc(obj.json_container_tail))
-        if isinstance(obj, Object):
+        if isinstance(obj, JObject):
             for k, v in obj.items():
-                if isinstance(k, JSONType):
+                if isinstance(k, JType):
                     res.update(_collect_comments(k))
-                if isinstance(v, JSONType):
+                if isinstance(v, JType):
                     res.update(_collect_comments(v))
         elif isinstance(obj, Array):
             for v in obj:
-                if isinstance(v, JSONType):
+                if isinstance(v, JType):
                     res.update(_collect_comments(v))
     return res
 
@@ -64,13 +64,13 @@ def gen_field_doc(field: ModelField, doc: str | None) -> str:
 
 def format_exist(
     fields: dict[str, tuple[ModelField, str | None]],
-    container: Object,
+    container: JObject,
 ) -> None:
     for k, v in list(container.items()):
         if k in fields:
             field, doc = fields.pop(k)
-            k: String = convert(k)
-            conv_v: JSONType = convert(v)
+            k: JString = convert(k)
+            conv_v: JType = convert(v)
             if conv_v is not v:
                 container[k] = conv_v
             exclude = _collect_comments(k)
@@ -80,7 +80,7 @@ def format_exist(
 
 def format_not_exist(
     fields: dict[str, tuple[ModelField, str | None]],
-    container: Object,
+    container: JObject,
 ) -> None:
     exclude = _collect_comments(container)
     for k, (field, doc) in fields.items():
@@ -95,8 +95,8 @@ def format_not_exist(
             k.json_before.append(BlockStyleComment(d))
 
 
-def format_with_model(container: Object, model: type[BaseModel]) -> None:
-    if not isinstance(container, Object):
+def format_with_model(container: JObject, model: type[BaseModel]) -> None:
+    if not isinstance(container, JObject):
         raise TypeError(f"{container} is not a json object.")
     fields: dict[str, tuple[ModelField, str | None]] = {
         k: (f, f.field_info.description) for k, f in model.__fields__.items()

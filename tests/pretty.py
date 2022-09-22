@@ -1,6 +1,6 @@
 import inspect
 
-from kayaku.backend.api import json5
+from kayaku import backend as json5
 from kayaku.backend.types import convert
 from kayaku.pretty import Prettifier
 
