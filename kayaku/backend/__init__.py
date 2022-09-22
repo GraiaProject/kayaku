@@ -4,12 +4,13 @@ Ported from <https://github.com/noirbizarre/json4humans> under the MIT license.
 """
 from __future__ import annotations
 
+import io
 from pathlib import Path
 from typing import Any, TextIO
 
 from lark.lark import Lark
 
-from .encode import encoder
+from .encode import Encoder
 from .env import DEBUG
 from .transform import transformer
 
@@ -60,7 +61,9 @@ def dumps(obj: Any) -> str:
     """
     Serialize JSON to a string
     """
-    return encoder.encode(obj)
+    fp = io.StringIO()
+    Encoder(fp).encode(obj)
+    return fp.getvalue()
 
 
 def dump(obj: Any, out: TextIO | Path):
@@ -68,5 +71,5 @@ def dump(obj: Any, out: TextIO | Path):
     Serialize JSON to a file-like object
     """
     out = out.open("w") if isinstance(out, Path) else out
-    out.write(dumps(obj))
+    Encoder(out).encode(obj)
     out.write("\n")

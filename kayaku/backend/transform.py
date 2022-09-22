@@ -31,34 +31,6 @@ from .types import (  # noqa: F401
 )
 
 
-class WSCTransformer(BaseTransformer):
-    """
-    A [Transformer][lark.visitors.Transformer] handling whitespaces and comments.
-    """
-
-    @v_args(inline=True)
-    def WS(self, token: Token) -> WhiteSpace:
-        return WhiteSpace(token.value)
-
-    def CPP_COMMENT(self, token: Token) -> LineStyleComment:
-        return LineStyleComment(token.value[2:])
-
-    def C_COMMENT(self, token: Token) -> BlockStyleComment:
-        return BlockStyleComment(token.value[2:-2])
-
-    def SH_COMMENT(self, token: Token) -> HashStyleComment:
-        return HashStyleComment(token.value[1:])
-
-    def wschs(self, wscs: list[WSC]) -> list[WSC]:
-        return wscs
-
-    def wscs(self, wscs: list[WSC]) -> list[WSC]:
-        return wscs
-
-    def ws(self, wscs: list[WSC]) -> list[WSC]:
-        return wscs
-
-
 class Transformer(BaseTransformer):
     """
     A [Transformer][lark.visitors.Transformer] for JSON5

@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable, TextIO
 
 from . import wsc
-from .style import with_style
-from .types import AnyNumber, Identifier, JLiteral, JNumber, JString  # noqa: F401
+from .types import AnyNumber, Identifier, JLiteral, JNumber, JString
 
 ESCAPES = {
     "\\": r"\\",
@@ -19,6 +18,31 @@ ESCAPES = {
     "\u2029": r"\\u2029",
 }
 
+JSONEncoderMethod = Callable[[Any, Any], None]
+"""A JSON encoder type method"""
+
+
+def with_style(fn: JSONEncoderMethod) -> JSONEncoderMethod:
+    """
+    A decorator providing whitespaces and comments handling for encoders.
+
+    It handles `json_before` and `json_after` serialization
+    if the object to encode has these attributes.
+
+    :param fn: An encoder method for a spcific type.
+    """
+
+    def encode_with_style(self: Encoder, obj: Any) -> None:
+        self.fp.write(
+            "".join(wsc.encode_wsc(w) for w in getattr(obj, "json_before", [])),
+        )
+        fn(self, obj)
+        self.fp.write(
+            "".join(wsc.encode_wsc(w) for w in getattr(obj, "json_after", [])),
+        )
+
+    return encode_with_style
+
 
 def escape_string(string: str, **escapes: str | int | None) -> str:
     out = string.translate(str.maketrans({**escapes, **ESCAPES}))
@@ -29,100 +53,108 @@ def escape_string(string: str, **escapes: str | int | None) -> str:
 
 
 class Encoder:
-    def encode(self, obj: Any) -> str:
+    def __init__(self, fp: TextIO):
+        self.fp = fp
+
+    def encode(self, obj: Any) -> None:
         if isinstance(obj, JNumber):
-            return self.encode_number(obj)
-        if isinstance(obj, bool):
-            return self.encode_bool(obj)
-        if isinstance(obj, str):
-            return self.encode_string(obj)
-        if isinstance(obj, int):
-            return self.encode_int(obj)
-        if isinstance(obj, float):
-            return self.encode_float(obj)
-        if isinstance(obj, dict):
-            return self.encode_dict(obj)
-        if isinstance(obj, (list, tuple)):
-            return self.encode_iterable(obj)
-        if isinstance(obj, JLiteral):
-            return self.encode_literal(obj)
-        raise NotImplementedError(f"Unknown type: {type(obj)}")
+            self.encode_number(obj)
+        elif isinstance(obj, bool):
+            self.encode_bool(obj)
+        elif isinstance(obj, str):
+            self.encode_string(obj)
+        elif isinstance(obj, int):
+            self.encode_int(obj)
+        elif isinstance(obj, float):
+            self.encode_float(obj)
+        elif isinstance(obj, dict):
+            self.encode_dict(obj)
+        elif isinstance(obj, (list, tuple)):
+            self.encode_iterable(obj)
+        elif isinstance(obj, JLiteral):
+            self.encode_literal(obj)
+        else:
+            raise NotImplementedError(f"Unknown type: {type(obj)}")
 
     @with_style
-    def encode_int(self, obj: int) -> str:
-        return str(obj)
+    def encode_int(self, obj: int) -> None:
+        self.fp.write(str(obj))
 
     @with_style
-    def encode_float(self, obj: float) -> str:
-        return str(obj)
+    def encode_float(self, obj: float) -> None:
+        self.fp.write(str(obj))
 
     @with_style
-    def encode_bool(self, obj: bool) -> str:
-        return "true" if obj else "false"
+    def encode_bool(self, obj: bool) -> None:
+        self.fp.write("true" if obj else "false")
 
     @with_style
-    def encode_literal(self, obj: JLiteral) -> str:
+    def encode_literal(self, obj: JLiteral) -> None:
         if obj.value is True:
-            return "true"
+            self.fp.write("true")
         if obj.value is False:
-            return "false"
+            self.fp.write("false")
         if obj.value is None:
-            return "null"
+            self.fp.write("null")
         raise NotImplementedError(f"Unknown literal: {obj.value}")
 
     @with_style
-    def encode_dict(self, obj: dict) -> str:
-        return "".join(
-            (
-                "{",
-                "".join(
-                    wsc.encode_wsc(w) for w in getattr(obj, "json_container_head", [])
-                ),
-                ",".join(self.encode_pair(k, v) for k, v in obj.items()),
-                "," if getattr(obj, "json_container_trailing_comma", False) else "",
-                "".join(
-                    wsc.encode_wsc(w) for w in getattr(obj, "json_container_tail", [])
-                ),
-                "}",
-            )
+    def encode_dict(self, obj: dict) -> None:
+        self.fp.write("{")
+        self.fp.write(
+            "".join(wsc.encode_wsc(w) for w in getattr(obj, "json_container_head", []))
         )
+        if obj:
+            last_k = next(reversed(obj))
+            for k, v in obj.items():
+                self.encode_pair(k, v)
+                if k is not last_k or getattr(
+                    obj, "json_container_trailing_comma", False
+                ):
+                    self.fp.write(",")
+        self.fp.write(
+            "".join(wsc.encode_wsc(w) for w in getattr(obj, "json_container_tail", []))
+        )
+        self.fp.write("}")
 
     @with_style
-    def encode_iterable(self, obj: list | tuple) -> str:
-        return "".join(
-            (
-                "[",
-                "".join(
-                    wsc.encode_wsc(w) for w in getattr(obj, "json_container_head", [])
-                ),
-                ",".join(self.encode(item) for item in obj),
-                "," if getattr(obj, "json_container_trailing_comma", False) else "",
-                "".join(
-                    wsc.encode_wsc(w) for w in getattr(obj, "json_container_tail", [])
-                ),
-                "]",
-            )
+    def encode_iterable(self, obj: list | tuple) -> None:
+        self.fp.write("[")
+        self.fp.write(
+            "".join(wsc.encode_wsc(w) for w in getattr(obj, "json_container_head", []))
         )
+        if obj:
+            last_v = obj[-1]
+            for v in obj:
+                self.encode(v)
+                if v is not last_v or getattr(
+                    obj, "json_container_trailing_comma", False
+                ):
+                    self.fp.write(",")
+        self.fp.write(
+            "".join(wsc.encode_wsc(w) for w in getattr(obj, "json_container_tail", []))
+        )
+        self.fp.write("]")
 
-    def encode_pair(self, key: str, value: Any) -> str:
-        return f"{self.encode(key)}:{self.encode(value)}"
+    def encode_pair(self, key: str, value: Any) -> None:
+        self.encode(key)
+        self.fp.write(":")
+        self.encode(value)
 
     @with_style
-    def encode_number(self, obj: AnyNumber) -> str:
+    def encode_number(self, obj: AnyNumber) -> None:
         presentation: str = {
             float("inf"): "Infinity",
             float("-inf"): "-Infinity",
             float("NaN"): "NaN",
         }.get(obj, str(obj))
-        return f"+{presentation}" if obj > 0 and obj.prefixed else presentation
+        self.fp.write(f"+{presentation}" if obj > 0 and obj.prefixed else presentation)
 
     @with_style
-    def encode_string(self, obj: str) -> str:
+    def encode_string(self, obj: str) -> None:
         if isinstance(obj, JString):
-            return f"{obj.quote.value}{escape_string(obj)}{obj.quote.value}"
+            self.fp.write(f"{obj.quote.value}{escape_string(obj)}{obj.quote.value}")
         elif isinstance(obj, Identifier):
-            return obj
-        return f'"{escape_string(obj)}"'
-
-
-encoder = Encoder()
+            self.fp.write(obj)
+        else:
+            self.fp.write(f'"{escape_string(obj)}"')
