@@ -36,8 +36,6 @@ debug_parser = Lark.open(
     transformer=None,
 )
 
-# TODO: fp oriented load / dump
-
 
 def loads(src: str) -> Any:
     """
@@ -72,4 +70,3 @@ def dump(obj: Any, out: TextIO | Path):
     """
     out = out.open("w") if isinstance(out, Path) else out
     Encoder(out).encode(obj)
-    out.write("\n")

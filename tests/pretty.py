@@ -38,3 +38,9 @@ def test_pretty_single_unwrapped():
         json5.dumps(Prettifier(unfold_single=True).prettify(origin))
         == expected_unwrapped
     )
+
+
+def test_pretty_sys_test():
+    # A complex prettify task that should cover every path.
+    # Here we are doing a round trip work.
+    ...

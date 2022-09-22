@@ -6,6 +6,7 @@ from typing import Any, ClassVar, Dict, Tuple, Type
 import pydantic
 
 from kayaku.backend.types import JObject
+from kayaku.utils import gen_schema
 
 from .format import format_with_model
 from .model import ConfigModel
@@ -60,8 +61,9 @@ def _bootstrap_files():
     for path, sect_map in file_map.items():
         document = json5.loads(path.read_text(encoding="utf-8") or "{}")
         failed: list[pydantic.ValidationError] = []
-        # TODO: Schema Rework
+        model_list: list[tuple[DomainType, type[pydantic.BaseModel]]] = []
         for sect, classes in sect_map.items():
+            model_list.extend((sect, cls) for cls in classes)
             container = document
             for s in sect:
                 container = container.setdefault(s, JObject())
@@ -71,9 +73,11 @@ def _bootstrap_files():
                 except pydantic.ValidationError as e:
                     failed.append(e)
             for cls in classes:
+                # Copy schema's "properties" and "$defs" out
                 format_with_model(container, cls)
-        # schema_path = path.with_suffix(".schema.json")
-        # document["$schema"] = schema_path.as_uri()
+        schema_path = path.with_suffix(".schema.json")  # TODO: Customization
+        document["$schema"] = schema_path.as_uri()
+        schema_path.write_text(json5.dumps(gen_schema(model_list)), encoding="utf-8")
         path.write_text(
             json5.dumps(Prettifier().prettify(document, clean=True)), encoding="utf-8"
         )

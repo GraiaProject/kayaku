@@ -11,9 +11,7 @@ from . import wsc
 from .types import (  # noqa: F401
     WSC,
     Array,
-    BlockStyleComment,
     Float,
-    HashStyleComment,
     HexInteger,
     Identifier,
     Integer,
@@ -23,11 +21,10 @@ from .types import (  # noqa: F401
     JObject,
     JString,
     JType,
-    LineStyleComment,
+    Key,
     Member,
     Quote,
     Value,
-    WhiteSpace,
 )
 
 
@@ -83,7 +80,7 @@ class Transformer(BaseTransformer):
         return i
 
     def SIGNED_NUMBER(self, token: Token):
-        prefixed = token.value.startswith(("+", "-"))
+        prefix = token.value[0] if token.value.startswith(("+", "-")) else None
         if (
             "." not in token.value
             and "e" not in token.value
@@ -91,14 +88,12 @@ class Transformer(BaseTransformer):
             not in {"NaN", "+NaN", "-NaN", "+Infinity", "-Infinity", "Infinity"}
         ):
             i = Integer(token.value)
-            i.__post_init__(prefixed=prefixed)
+            i.__post_init__(prefixed=prefix is not None)
             return i
         significand = len(token.value.split(".")[1]) if "." in token.value else None
-        f = Float(
-            token.value,
-        )
+        f = Float(token.value)
         f.__post_init__(
-            prefixed=prefixed,
+            prefix=prefix,
             leading_point=token.value.startswith("."),
             significand=significand,
         )
@@ -127,17 +122,20 @@ class Transformer(BaseTransformer):
     def literal(self, token: Token):
         if token.value == "true":
             return JLiteral[bool](True)
-        elif token.value == "false":
+        if token.value == "false":
             return JLiteral[bool](False)
-        elif token.value == "null":
+        if token.value == "null":
             return JLiteral[None](None)
-        raise ValueError(f"Unknown literal: {token.value}")
 
     @v_args(inline=True)
     def pack_wsc(self, before: list[WSC], value: JType, after: list[WSC]) -> JType:
         value.json_before = before
         value.json_after = after
         return value
+
+    def member(self, kv: list[Key | Value]) -> Member:
+        assert len(kv) == 2
+        return (cast(Key, kv[0]), cast(Value, kv[1]))
 
     value = pack_wsc
     key = pack_wsc

@@ -7,7 +7,17 @@ Most of the time you won't have to instanciate them manually.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Generic, Iterable, List, Tuple, TypeVar, Union, overload
+from typing import (
+    Any,
+    Generic,
+    Iterable,
+    List,
+    Literal,
+    Tuple,
+    TypeVar,
+    Union,
+    overload,
+)
 
 from typing_extensions import TypeAlias
 
@@ -211,13 +221,13 @@ class Float(JNumber, float):
 
     def __post_init__(
         self,
-        prefixed: bool = False,
+        prefix: bool | None = None,
         leading_point: bool = False,
         significand: int | None = None,
         before: list[WSC | str] | None = None,
         after: list[WSC | str] | None = None,
     ):
-        self.prefixed = prefixed
+        self.prefix = prefix
         self.leading_point = leading_point
         self.significand = significand
         return super().__post_init__(before, after)

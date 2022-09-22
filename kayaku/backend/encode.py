@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import math
 from typing import Any, Callable, TextIO
 
 from . import wsc
-from .types import AnyNumber, Identifier, JLiteral, JNumber, JString
+from .types import AnyNumber, Float, Identifier, Integer, JLiteral, JNumber, JString
 
 ESCAPES = {
     "\\": r"\\",
@@ -57,16 +58,12 @@ class Encoder:
         self.fp = fp
 
     def encode(self, obj: Any) -> None:
-        if isinstance(obj, JNumber):
+        if isinstance(obj, (JNumber, int, float)):
             self.encode_number(obj)
         elif isinstance(obj, bool):
-            self.encode_bool(obj)
+            self.encode_literal(JLiteral(obj))
         elif isinstance(obj, str):
             self.encode_string(obj)
-        elif isinstance(obj, int):
-            self.encode_int(obj)
-        elif isinstance(obj, float):
-            self.encode_float(obj)
         elif isinstance(obj, dict):
             self.encode_dict(obj)
         elif isinstance(obj, (list, tuple)):
@@ -77,26 +74,15 @@ class Encoder:
             raise NotImplementedError(f"Unknown type: {type(obj)}")
 
     @with_style
-    def encode_int(self, obj: int) -> None:
-        self.fp.write(str(obj))
-
-    @with_style
-    def encode_float(self, obj: float) -> None:
-        self.fp.write(str(obj))
-
-    @with_style
-    def encode_bool(self, obj: bool) -> None:
-        self.fp.write("true" if obj else "false")
-
-    @with_style
     def encode_literal(self, obj: JLiteral) -> None:
         if obj.value is True:
             self.fp.write("true")
-        if obj.value is False:
+        elif obj.value is False:
             self.fp.write("false")
-        if obj.value is None:
+        elif obj.value is None:
             self.fp.write("null")
-        raise NotImplementedError(f"Unknown literal: {obj.value}")
+        else:
+            raise NotImplementedError(f"Unknown literal: {obj.value}")
 
     @with_style
     def encode_dict(self, obj: dict) -> None:
@@ -142,12 +128,11 @@ class Encoder:
         self.encode(value)
 
     @with_style
-    def encode_number(self, obj: AnyNumber) -> None:
-        presentation: str = {
-            float("inf"): "Infinity",
-            float("-inf"): "-Infinity",
-            float("NaN"): "NaN",
-        }.get(obj, str(obj))
+    def encode_number(self, obj: AnyNumber | int | float) -> None:
+        if not isinstance(obj, JNumber):
+            obj = (Integer if isinstance(obj, int) else Float)(obj)
+        presentation = str(obj)
+        # TODO
         self.fp.write(f"+{presentation}" if obj > 0 and obj.prefixed else presentation)
 
     @with_style

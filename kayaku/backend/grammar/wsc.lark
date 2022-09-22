@@ -4,10 +4,6 @@ wscs: wsc*
 COMMENT : CPP_COMMENT | C_COMMENT
 WSC: WS | COMMENT
 
-
-wschs: wsch*
-?wsch: CPP_COMMENT | C_COMMENT | SH_COMMENT | WS
-
 ws: WS*
 
 %import common.WS_INLINE

@@ -11,13 +11,7 @@ from lark.lexer import Token
 from lark.visitors import Transformer, v_args
 
 from .env import DEBUG
-from .types import (
-    WSC,
-    BlockStyleComment,
-    HashStyleComment,
-    LineStyleComment,
-    WhiteSpace,
-)
+from .types import WSC, BlockStyleComment, LineStyleComment, WhiteSpace
 
 
 def parse(wsc: str) -> list[WSC]:
@@ -67,12 +61,6 @@ class WSCTransformer(Transformer):
     def C_COMMENT(self, token: Token) -> BlockStyleComment:
         return BlockStyleComment(token.value[2:-2])
 
-    def SH_COMMENT(self, token: Token) -> HashStyleComment:
-        return HashStyleComment(token.value[1:])
-
-    def wschs(self, wscs: list[WSC]) -> list[WSC]:
-        return wscs
-
     def wscs(self, wscs: list[WSC]) -> list[WSC]:
         return wscs
 
@@ -93,8 +81,6 @@ def encode_wsc(wsc: WSC):
         return f"//{wsc}"
     if isinstance(wsc, BlockStyleComment):
         return f"/*{wsc}*/"
-    if isinstance(wsc, HashStyleComment):
-        return f"#{wsc}"
     if isinstance(wsc, WhiteSpace):
         return str(wsc)
     raise NotImplementedError(f"Unknown whitespace or comment type: {wsc!r}")
@@ -105,7 +91,7 @@ parser = Lark.open(
     rel_to=__file__,
     lexer="basic",
     parser="lalr",
-    start="wschs",
+    start="wscs",
     maybe_placeholders=False,
     regex=True,
     transformer=transformer,
