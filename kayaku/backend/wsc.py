@@ -4,46 +4,11 @@ This module handles whitespaces and comments
 
 from __future__ import annotations
 
-from typing import List, cast
-
 from lark.lark import Lark
 from lark.lexer import Token
 from lark.visitors import Transformer, v_args
 
-from .env import DEBUG
 from .types import WSC, BlockStyleComment, LineStyleComment, WhiteSpace
-
-
-def parse(wsc: str) -> list[WSC]:
-    """
-    Parse a string into a list of [WSC][kayaku.backend.types.WSC].
-
-    :param wsc: A string representing whitespaces and/or comments.
-    :returns: A list of [WSC][kayaku.backend.types.WSC] only.
-    """
-    if not DEBUG.get():
-        return cast(List[WSC], parser.parse(wsc))
-    tree = parser.parse(wsc)
-    return cast(List[WSC], transformer.transform(tree))
-
-
-def parse_list(items: list["WSC" | str] | None = None) -> list[WSC]:
-    """
-    Parse an optional sequence of whitespaces and comments as [WSC][kayaku.backend.types.WSC] or [str][]
-    into a list of [WSC][kayaku.backend.types.WSC] only.
-
-    :param items: An optional list of [WSC][kayaku.backend.types.WSC] or string to be parsed as WSC.
-    :returns: A list of [WSC][kayaku.backend.types.WSC].
-    """
-    if items is None:
-        return []
-    wscs: list[WSC] = []
-    for item in items:
-        if isinstance(item, str):
-            wscs.extend(parse(item))
-        else:
-            wscs.append(item)
-    return wscs
 
 
 class WSCTransformer(Transformer):
@@ -62,9 +27,6 @@ class WSCTransformer(Transformer):
         return BlockStyleComment(token.value[2:-2])
 
     def wscs(self, wscs: list[WSC]) -> list[WSC]:
-        return wscs
-
-    def ws(self, wscs: list[WSC]) -> list[WSC]:
         return wscs
 
 

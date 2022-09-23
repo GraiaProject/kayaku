@@ -27,7 +27,7 @@ classifiers = [
 [tool.pdm]
 includes = ["kayaku"]
 [tool.pdm.scripts]
-test = {composite = ["coverage run -m pytest", "coverage xml", "coverage report"]}
+test = {composite = ["coverage run -m pytest -vv", "coverage xml", "coverage report"]}
 [tool.pdm.dev-dependencies]
 dev = [
     "black<23.0.0,>=22.3.0",
@@ -63,9 +63,7 @@ exclude_lines = [
     # Don't complain overload method / functions
     "@(typing\\.)?overload",
     # don't complain __repr__ and __str__ and __repr_args__ for representation
-    "def __repr__",
-    "def __str__",
-    "def __repr_args__",
+    "def __repr__\\(self\\).+",
     "except ImportError:", # Don't complain about import fallback
 ]
 partial_branches = [

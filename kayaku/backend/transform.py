@@ -75,12 +75,11 @@ class Transformer(BaseTransformer):
         return number
 
     def SIGNED_HEXNUMBER(self, token: Token):
-        i = HexInteger(token.value, base=16)
-        i.__post_init__(prefixed=token.value.startswith(("+", "-")))
+        i = HexInteger(int(token.value, base=16))
+        i.__post_init__(token.value)
         return i
 
     def SIGNED_NUMBER(self, token: Token):
-        prefix = token.value[0] if token.value.startswith(("+", "-")) else None
         if (
             "." not in token.value
             and "e" not in token.value
@@ -88,15 +87,10 @@ class Transformer(BaseTransformer):
             not in {"NaN", "+NaN", "-NaN", "+Infinity", "-Infinity", "Infinity"}
         ):
             i = Integer(token.value)
-            i.__post_init__(prefixed=prefix is not None)
+            i.__post_init__(token.value)
             return i
-        significand = len(token.value.split(".")[1]) if "." in token.value else None
         f = Float(token.value)
-        f.__post_init__(
-            prefix=prefix,
-            leading_point=token.value.startswith("."),
-            significand=significand,
-        )
+        f.__post_init__(token.value)
         return f
 
     @staticmethod
@@ -122,10 +116,10 @@ class Transformer(BaseTransformer):
     def literal(self, token: Token):
         if token.value == "true":
             return JLiteral[bool](True)
-        if token.value == "false":
+        elif token.value == "false":
             return JLiteral[bool](False)
-        if token.value == "null":
-            return JLiteral[None](None)
+        assert token.value == "null"
+        return JLiteral[None](None)
 
     @v_args(inline=True)
     def pack_wsc(self, before: list[WSC], value: JType, after: list[WSC]) -> JType:

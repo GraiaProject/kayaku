@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import math
 from typing import Any, Callable, TextIO
+
+from loguru import logger
 
 from . import wsc
 from .types import AnyNumber, Float, Identifier, Integer, JLiteral, JNumber, JString
@@ -58,10 +59,10 @@ class Encoder:
         self.fp = fp
 
     def encode(self, obj: Any) -> None:
-        if isinstance(obj, (JNumber, int, float)):
-            self.encode_number(obj)
-        elif isinstance(obj, bool):
+        if isinstance(obj, bool) or obj is None:
             self.encode_literal(JLiteral(obj))
+        elif isinstance(obj, (JNumber, int, float)):
+            self.encode_number(obj)
         elif isinstance(obj, str):
             self.encode_string(obj)
         elif isinstance(obj, dict):
@@ -131,9 +132,7 @@ class Encoder:
     def encode_number(self, obj: AnyNumber | int | float) -> None:
         if not isinstance(obj, JNumber):
             obj = (Integer if isinstance(obj, int) else Float)(obj)
-        presentation = str(obj)
-        # TODO
-        self.fp.write(f"+{presentation}" if obj > 0 and obj.prefixed else presentation)
+        self.fp.write(obj.__round_dump__())
 
     @with_style
     def encode_string(self, obj: str) -> None:

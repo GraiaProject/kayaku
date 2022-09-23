@@ -102,8 +102,12 @@ class Prettifier:
     def convert_key(self, obj: JString | Identifier | str) -> JString | Identifier:
         if self.key_quote is None:
             return convert(obj)
-        cls = JString if self.key_quote else Identifier
-        string = cls(obj)
+        if self.key_quote:
+            string = JString(obj).__post_init__(quote=self.key_quote)
+        else:
+            string = (
+                Identifier(obj) if True else JString(obj)
+            )  # TODO: Detect identifier flaw
         if hasattr(obj, "__dict__"):
             string.__dict__.update(obj.__dict__)
         return string
@@ -112,8 +116,8 @@ class Prettifier:
         """Prettify a JSON Object."""
         # Object(*(KVPair ,) container_trail)
         # KVPair(key : value)
-        if not obj:
-            return obj
+        if not obj and not obj.json_container_tail:
+            return JObject().__post_init__()
         if len(obj) == 1 and not self.unfold_single:
             k, v = next(iter(obj.items()))
             k, v = self.convert_key(k), convert(v)
@@ -124,9 +128,9 @@ class Prettifier:
                 k.__json_clear__()
                 v.__json_clear__()
                 v.json_before.append(WhiteSpace(" "))
-                return JObject({k: v})
+                return JObject({k: v}).__post_init__()
         self.layer += 1
-        new_obj = JObject()
+        new_obj = JObject().__post_init__()
         # Preserve container tail
         if obj and not obj.json_container_trailing_comma and (pair := obj.popitem()):
             k, v = self.convert_key(pair[0]), convert(pair[1])
@@ -150,8 +154,8 @@ class Prettifier:
     def prettify_array(self, arr: Array) -> Array:
         """Prettify a JSON Array."""
         # Array(*(value ,) container_trail)
-        if not arr:
-            return arr
+        if not arr and not arr.json_container_tail:
+            return Array().__post_init__()
         if len(arr) == 1 and not self.unfold_single:
             v: JType = convert(arr[0])
             sub_comments = self.collect_comments(v)
@@ -159,8 +163,8 @@ class Prettifier:
                 sub_comments or (v and isinstance(v, (list, tuple, dict)))
             ):  # is simple type
                 v.__json_clear__()
-                return Array((v,))
-        new_arr = Array()
+                return Array((v,)).__post_init__()
+        new_arr = Array().__post_init__()
         self.layer += 1
         # Preserve container tail
         if arr and not arr.json_container_trailing_comma and (v := arr.pop()):
@@ -184,13 +188,9 @@ class Prettifier:
             obj.json_container_tail = v.json_after
             v.json_after = []
 
-    def prettify(
-        self, container: JObject | Array, clean: bool = False
-    ) -> JObject | Array:
-        if isinstance(container, JObject):
-            res = self.prettify_object(container)
-        elif isinstance(container, Array):
-            res = self.prettify_array(container)
-        if clean:
-            res.json_before.clear()
-        return res
+    def prettify(self, container: JObject | Array) -> JObject | Array:
+        return (
+            self.prettify_object(container)
+            if isinstance(container, JObject)
+            else self.prettify_array(container)
+        )

@@ -1,7 +1,7 @@
 import inspect
 
 from kayaku import backend as json5
-from kayaku.backend.types import convert
+from kayaku.backend.types import Quote, convert
 from kayaku.pretty import Prettifier
 
 
@@ -40,7 +40,122 @@ def test_pretty_single_unwrapped():
     )
 
 
-def test_pretty_sys_test():
-    # A complex prettify task that should cover every path.
-    # Here we are doing a round trip work.
-    ...
+def test_pretty_complex():
+    obj = {"a": 5, "b": 6, "c": [None, {"a": "b", "c": {"d": "e"}}, "F"]}
+    result = inspect.cleandoc(
+        """\
+        {
+            "a": 5,
+            "b": 6,
+            "c": [
+                null,
+                {
+                    "a": "b",
+                    "c": {"d": "e"}
+                },
+                "F"
+            ]
+        }
+        """
+    )
+    assert json5.dumps(Prettifier().prettify(convert(obj))) == result
+
+
+def test_pretty_flavor():
+    input_str = "{a: 6}"
+    assert (
+        json5.dumps(Prettifier(key_quote=None).prettify(json5.loads(input_str)))
+        == "{a: 6}"
+    )
+    assert (
+        json5.dumps(Prettifier(key_quote=Quote.DOUBLE).prettify(json5.loads(input_str)))
+        == '{"a": 6}'
+    )
+    assert (
+        json5.dumps(Prettifier(key_quote=Quote.SINGLE).prettify(json5.loads(input_str)))
+        == "{'a': 6}"
+    )
+    assert (
+        json5.dumps(Prettifier(key_quote=False).prettify(json5.loads("{'a': 6}")))
+        == "{a: 6}"
+    )
+
+
+def test_pretty_comment():
+    input_str = """
+    {
+        "a": 5,
+        "b": 6,
+        "c": [
+            null,
+            /*massive*/{ //plots
+                "a": "b",
+                "c": {"d": "e"}
+            },
+            "F", // marvelous
+        ],
+        "ariadne":{
+            /*
+            More annotations
+            
+            @type: int
+            */
+            "account": 0
+        },
+        "broadcast":{
+            /*@type: List[dict]*/
+            "dct":[
+                {"3": 5} // what a mess
+            ] /*input*/,
+            /*
+            * Test annotating
+            * What about double line
+            *
+            * @type: Optional[P]
+            */
+            "p": null
+        }
+    }
+    """
+
+    output = inspect.cleandoc(
+        """\
+        {
+            "a": 5,
+            "b": 6,
+            "c": [
+                null,
+                /*massive*/
+                { //plots
+                    "a": "b",
+                    "c": {"d": "e"}
+                },
+                "F" // marvelous
+            ],
+            "ariadne": {
+                /*
+                * More annotations
+                * 
+                * @type: int
+                */
+                "account": 0
+            },
+            "broadcast": {
+                /*@type: List[dict]*/
+                /*input*/
+                "dct": [
+                    {"3": 5} // what a mess
+                ],
+                /*
+                * Test annotating
+                * What about double line
+                * 
+                * @type: Optional[P]
+                */
+                "p": null
+            }
+        }
+        """
+    )
+
+    assert json5.dumps(Prettifier().prettify(json5.loads(input_str))) == output

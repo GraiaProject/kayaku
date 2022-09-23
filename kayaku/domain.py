@@ -78,9 +78,7 @@ def _bootstrap_files():
         schema_path = path.with_suffix(".schema.json")  # TODO: Customization
         document["$schema"] = schema_path.as_uri()
         schema_path.write_text(json5.dumps(gen_schema(model_list)), encoding="utf-8")
-        path.write_text(
-            json5.dumps(Prettifier().prettify(document, clean=True)), encoding="utf-8"
-        )
+        path.write_text(json5.dumps(Prettifier().prettify(document)), encoding="utf-8")
         if failed:
             raise ValueError(f"{len(failed)} models failed to validate.", failed)
 

@@ -4,8 +4,6 @@ wscs: wsc*
 COMMENT : CPP_COMMENT | C_COMMENT
 WSC: WS | COMMENT
 
-ws: WS*
-
 %import common.WS_INLINE
 %import common.NEWLINE
 %import common.WS

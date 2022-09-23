@@ -1,25 +1,16 @@
 """
-This modules contains all shared and reausable types supporting style preservation.
+This modules contains all shared and reusable types supporting style preservation.
 
-Most of the time you won't have to instanciate them manually.
+Most of the time you won't have to instantiate them manually.
 """
 
 from __future__ import annotations
 
+import math
 from enum import Enum
-from typing import (
-    Any,
-    Generic,
-    Iterable,
-    List,
-    Literal,
-    Tuple,
-    TypeVar,
-    Union,
-    overload,
-)
+from typing import Any, Generic, List, Tuple, TypeVar, overload
 
-from typing_extensions import TypeAlias
+from typing_extensions import Self, TypeAlias
 
 
 class JType:
@@ -32,15 +23,10 @@ class JType:
     json_after: list[WSC] = []
     """Whitespaces and comments sequence after the object."""
 
-    def __post_init__(
-        self,
-        before: list[WSC | str] | None = None,
-        after: list[WSC | str] | None = None,
-    ):
-        from . import wsc
-
-        self.json_before = wsc.parse_list(before)
-        self.json_after = wsc.parse_list(after)
+    def __post_init__(self) -> Self:
+        self.json_before = []
+        self.json_after = []
+        return self
 
     def __repr__(self) -> str:
         if attrs := getattr(self, "__dict__"):
@@ -65,20 +51,14 @@ class JContainer(JType):
 
     def __post_init__(
         self,
-        before: list[WSC | str] | None = None,
-        after: list[WSC | str] | None = None,
-        tail: list[WSC | str] | None = None,
+        tail: list[WSC] | None = None,
         trailing_comma: bool = False,
-    ):
-        super().__post_init__(before=before, after=after)
-        from . import wsc
+    ) -> Self:
+        super().__post_init__()
 
-        self.json_container_tail = wsc.parse_list(tail)
+        self.json_container_tail = tail or []
         self.json_container_trailing_comma = trailing_comma
-
-    def __json_clear__(self):
-        self.json_container_tail = []
-        return super().__json_clear__()
+        return self
 
 
 class WhiteSpace(str):
@@ -105,10 +85,6 @@ class BlockStyleComment(Comment):
 
 class LineStyleComment(Comment):
     """Stores a line-style comment (ie. starting with `//` and ending at the end of the current line)"""
-
-
-class HashStyleComment(Comment):
-    """Stores a hash-style comment (ie. starting with `#` and ending at the end of the current line)"""
 
 
 class JObject(JContainer, dict):
@@ -155,12 +131,11 @@ class JString(JType, str):
         self,
         quote: str | Quote = Quote.DOUBLE,
         linebreaks: list[int] | None = None,
-        before: list[WSC | str] | None = None,
-        after: list[WSC | str] | None = None,
-    ):
-        super().__post_init__(before=before, after=after)
+    ) -> Self:
+        super().__post_init__()
         self.quote = Quote(quote) if isinstance(quote, str) else quote
         self.linebreaks = linebreaks or []
+        return self
 
     def __repr__(self) -> str:
         if attrs := getattr(self, "__dict__"):
@@ -177,11 +152,14 @@ class JNumber(JType):
     Base class for all Number types and representations.
     """
 
-    prefixed: bool = False
-    """
-    Is the number prefixed by an explicit sign
-    """
-    __repr__ = JType.__repr__
+    origin: str | None = None
+
+    def __post_init__(self, origin: str | None = None) -> Self:
+        self.origin = origin
+        return super().__post_init__()
+
+    def __round_dump__(self) -> str:
+        ...
 
 
 class Integer(JNumber, int):
@@ -189,16 +167,13 @@ class Integer(JNumber, int):
     A JSON integer compatible with Python's `int`.
     """
 
-    def __post_init__(
-        self,
-        prefixed: bool = False,
-        before: list[WSC | str] | None = None,
-        after: list[WSC | str] | None = None,
-    ):
-        self.prefixed = prefixed
-        return super().__post_init__(before, after)
-
     def __str__(self) -> str:
+        return int.__repr__(self)
+
+    def __round_dump__(self) -> str:
+        if self.origin and int(self.origin) == self:
+            return self.origin
+
         return int.__repr__(self)
 
 
@@ -210,36 +185,25 @@ class HexInteger(Integer):
     def __str__(self) -> str:
         return hex(self)
 
+    def __round_dump__(self) -> str:
+        if self.origin and int(self.origin, base=16) == self:
+            return self.origin
+
+        return hex(self)
+
 
 class Float(JNumber, float):
     """
     A JSON float compatible with Python's `float`.
     """
 
-    leading_point: bool
-    significand: int | None
+    def __round_dump__(self) -> str:
+        if self.origin:
+            constructed = float(self.origin)
+            if (math.isnan(constructed) and math.isnan(self)) or self == constructed:
+                return self.origin
 
-    def __post_init__(
-        self,
-        prefix: bool | None = None,
-        leading_point: bool = False,
-        significand: int | None = None,
-        before: list[WSC | str] | None = None,
-        after: list[WSC | str] | None = None,
-    ):
-        self.prefix = prefix
-        self.leading_point = leading_point
-        self.significand = significand
-        return super().__post_init__(before, after)
-
-    def __str__(self) -> str:
-        raw = float.__repr__(self)
-        if self.leading_point and raw.startswith("0"):
-            return raw[1:]
-        if self.significand is not None:
-            pos = raw.index(".") + 1
-            raw = raw[: pos + self.significand]
-        return raw
+        return float.__repr__(self).replace("nan", "NaN").replace("inf", "Infinity")
 
 
 AnyNumber: TypeAlias = "Integer | Float"
@@ -281,8 +245,9 @@ A Key-Value pair in an [Object][kayaku.backend.types.Object]
 class TupleWithTrailingComma(Tuple[T, ...]):
     trailing_comma: bool = False
 
-    def __post_init__(self, trailing_comma: bool = False):
+    def __post_init__(self, trailing_comma: bool = False) -> Self:
         self.trailing_comma = trailing_comma
+        return Self
 
 
 JSONType_T = TypeVar("JSONType_T", bound=JType)
@@ -341,9 +306,7 @@ def convert(obj: Any) -> JType:
         o = Integer(obj)
     elif isinstance(obj, float):
         o = Float(obj)
-    elif isinstance(obj, bool):
-        o = JLiteral(obj)
-    elif obj is None:
+    elif isinstance(obj, bool) or obj == None:
         o = JLiteral(obj)
     else:
         raise TypeError(f"{obj} can't be automatically converted to JSONType!")
