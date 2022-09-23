@@ -1,6 +1,7 @@
 import inspect
 from typing import Tuple, Type, TypeVar, Union, cast
 
+from loguru import logger
 from pydantic import BaseConfig, BaseModel, Extra
 
 from .doc_parse import store_field_description
@@ -16,16 +17,6 @@ class ConfigModel(BaseModel):
         from .domain import _reg, domain_map
 
         if domain_tup in domain_map:
-            other = domain_map[domain_tup]
-            if (
-                cls.__module__ == other.__module__
-                and cls.__qualname__ == other.__qualname__
-            ):
-                if inspect.signature(cls) == inspect.signature(other):
-                    return
-                else:
-                    # TODO: log warning
-                    ...
             raise NameError(
                 f"{domain!r} is already occupied by {domain_map[domain_tup]!r}"
             )

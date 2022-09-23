@@ -3,9 +3,10 @@ from __future__ import annotations
 import inspect
 from typing import Iterable
 
-from loguru import logger
 from pydantic import BaseModel
 from pydantic.fields import ModelField
+
+from kayaku.pretty import Prettifier
 
 from .backend.types import (
     WSC,
@@ -20,21 +21,11 @@ from .backend.types import (
 )
 
 
-def clean_comment(comment: str) -> list[str]:
-    res = []
-    for i in inspect.cleandoc(comment).splitlines():
-        if i[:2] == "* ":
-            res.append(i[2:])
-        elif i == "*":
-            res.append("")
-        else:
-            res.append(i)
-    return res
-
-
 def _parse_wsc(wsc_iter: Iterable[WSC]) -> set[str]:
     return {
-        "\n".join(clean_comment(wsc)) for wsc in wsc_iter if isinstance(wsc, Comment)
+        "\n".join(Prettifier.clean_comment(inspect.cleandoc(wsc).splitlines()))
+        for wsc in wsc_iter
+        if isinstance(wsc, Comment)
     }
 
 
@@ -42,18 +33,15 @@ def _collect_comments(obj: JType) -> set[str]:
     res: set[str] = set()
     res.update(_parse_wsc(obj.json_before))
     res.update(_parse_wsc(obj.json_after))
-    if isinstance(obj, JContainer):
+    if isinstance(obj, (JObject, Array)):
         res.update(_parse_wsc(obj.json_container_tail))
         if isinstance(obj, JObject):
             for k, v in obj.items():
-                if isinstance(k, JType):
-                    res.update(_collect_comments(k))
-                if isinstance(v, JType):
-                    res.update(_collect_comments(v))
-        elif isinstance(obj, Array):
+                res.update(_collect_comments(k) if isinstance(k, JType) else set())
+                res.update(_collect_comments(v) if isinstance(v, JType) else set())
+        else:
             for v in obj:
-                if isinstance(v, JType):
-                    res.update(_collect_comments(v))
+                res.update(_collect_comments(v) if isinstance(v, JType) else set())
     return res
 
 
@@ -71,8 +59,7 @@ def format_exist(
             field, doc = fields.pop(k)
             k: JString = convert(k)
             conv_v: JType = convert(v)
-            if conv_v is not v:
-                container[k] = conv_v
+            container[k] = conv_v
             exclude = _collect_comments(k)
             if (d := gen_field_doc(field, doc)) not in exclude:
                 k.json_before.append(BlockStyleComment(d))
