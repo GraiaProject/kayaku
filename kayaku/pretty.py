@@ -6,6 +6,8 @@ import inspect
 from typing import Literal as Constant
 from typing import TypeVar
 
+import regex
+
 from .backend.types import (
     WSC,
     Array,
@@ -21,6 +23,15 @@ from .backend.types import (
 )
 
 T_Container = TypeVar("T_Container", Array, JObject)
+
+# LINK: https://262.ecma-international.org/5.1/#sec-7.6
+IDENTIFIER_PATTERN = regex.compile(
+    r"([\p{Lu}\p{Ll}\p{Lt}\p{Lm}\p{Lo}\p{Nl}$_]|\\u[0-9a-fA-F]{4})([\p{Lu}\p{Ll}\p{Lt}\p{Lm}\p{Lo}\p{Nl}$_\p{Mn}\p{Mc}\p{Nd}\p{Pc}\u200C\u200D]|\\u[0-9a-fA-F]{4})*".replace(
+        r"\u200C", "\u200C"
+    ).replace(
+        r"\u200D", "\u200D"
+    )
+)
 
 
 class Prettifier:
@@ -106,10 +117,13 @@ class Prettifier:
             string = JString(obj).__post_init__(quote=self.key_quote)
         else:
             string = (
-                Identifier(obj) if True else JString(obj)
-            )  # TODO: Detect identifier flaw
-        if hasattr(obj, "__dict__"):
-            string.__dict__.update(obj.__dict__)
+                Identifier(obj)
+                if IDENTIFIER_PATTERN.fullmatch(obj)
+                else JString(obj).__post_init__(Quote.DOUBLE)
+            )
+        obj = convert(obj)
+        string.json_before = obj.json_before
+        string.json_after = obj.json_after
         return string
 
     def prettify_object(self, obj: JObject) -> JObject:

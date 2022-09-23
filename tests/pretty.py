@@ -79,6 +79,10 @@ def test_pretty_flavor():
         json5.dumps(Prettifier(key_quote=False).prettify(json5.loads("{'a': 6}")))
         == "{a: 6}"
     )
+    assert (
+        json5.dumps(Prettifier(key_quote=False).prettify(json5.loads("{'.': 6}")))
+        == '{".": 6}'
+    )
 
 
 def test_pretty_comment():
@@ -114,7 +118,7 @@ def test_pretty_comment():
             * @type: Optional[P]
             */
             "p": null
-        }
+        }, // bro
     }
     """
 
@@ -153,7 +157,7 @@ def test_pretty_comment():
                 * @type: Optional[P]
                 */
                 "p": null
-            }
+            } // bro
         }
         """
     )
