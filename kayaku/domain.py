@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar, Dict, Tuple, Type
+from typing import Dict, Tuple, Type
 
 import pydantic
 
@@ -19,16 +20,20 @@ domain_map: dict[DomainType, type[ConfigModel]] = {}
 file_map: dict[Path, dict[DomainType, list[type[ConfigModel]]]] = {}
 
 
-class _Reg:
-    initialized: ClassVar[bool] = False
+@dataclass
+class _Registry:
+    initialized: bool = False
 
-    postponed: ClassVar[list[DomainType]] = []
+    postponed: list[DomainType] = field(default_factory=list)
 
-    model_path: ClassVar[dict[type[ConfigModel], FormattedPath]] = {}
+    model_path: dict[type[ConfigModel], FormattedPath] = field(default_factory=dict)
 
-    model_map: ClassVar[dict[type[ConfigModel], ConfigModel]] = {}
+    model_map: dict[type[ConfigModel], ConfigModel] = field(default_factory=dict)
 
-    domain_occupation: ClassVar[dict[Path, set[DomainType]]] = {}
+    domain_occupation: dict[Path, set[DomainType]] = field(default_factory=dict)
+
+
+_reg = _Registry()
 
 
 def _insert_domain(domains: DomainType) -> None:
@@ -36,22 +41,22 @@ def _insert_domain(domains: DomainType) -> None:
     fmt_path: FormattedPath = lookup(list(domains))
     path = fmt_path.path
     section = tuple(fmt_path.section)
-    if section in _Reg.domain_occupation.setdefault(path, set()):
+    if section in _reg.domain_occupation.setdefault(path, set()):
         raise NameError(f"{path.as_posix()}::{'.'.join(section)} is occupied!")
     for f_name in cls.__fields__:
         sub_sect = section + (f_name,)
-        if sub_sect in _Reg.domain_occupation[path]:
+        if sub_sect in _reg.domain_occupation[path]:
             raise NameError(f"{path.as_posix()}::{'.'.join(sub_sect)} is occupied!")
-        _Reg.domain_occupation[path].add(sub_sect)
+        _reg.domain_occupation[path].add(sub_sect)
     file_map.setdefault(path, {}).setdefault(section, []).append(cls)
-    _Reg.model_path[cls] = fmt_path
+    _reg.model_path[cls] = fmt_path
 
 
 def _bootstrap():
-    for domain in _Reg.postponed:
+    for domain in _reg.postponed:
         _insert_domain(domain)
     _bootstrap_files()
-    _Reg.initialized = True
+    _reg.initialized = True
 
 
 def _bootstrap_files():
@@ -69,11 +74,10 @@ def _bootstrap_files():
                 container = container.setdefault(s, JObject())
             for cls in classes:
                 try:
-                    _Reg.model_map[cls] = cls.parse_obj(container)
+                    _reg.model_map[cls] = cls.parse_obj(container)
                 except pydantic.ValidationError as e:
                     failed.append(e)
             for cls in classes:
-                # Copy schema's "properties" and "$defs" out
                 format_with_model(container, cls)
         schema_path = path.with_suffix(".schema.json")  # TODO: Customization
         document["$schema"] = schema_path.as_uri()
