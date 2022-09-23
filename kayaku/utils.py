@@ -3,11 +3,14 @@ from __future__ import annotations
 from typing import Any
 
 from pydantic import BaseModel, Field, create_model
+from typing_extensions import TypeAlias
 
-from .backend.types import Array, JContainer, JObject
+from .backend.types import Array, JObject
+
+DomainType: TypeAlias = "tuple[str, ...]"
 
 
-def update(container: JContainer, data: Any):
+def update(container: JObject | Array, data: Any, delete: bool = False):
     if container == data:
         return
     if isinstance(container, JObject):
@@ -17,21 +20,23 @@ def update(container: JContainer, data: Any):
                 update(container[k], v)
             else:
                 container[k] = v
-    elif isinstance(container, Array):
+        if delete:
+            for k in [k for k in container if k not in data]:
+                del container[k]
+    else:
         assert isinstance(data, (list, tuple))
         if len(data) > len(container):
             container.extend(None for _ in range(len(data) - len(container)))
         else:
-            [container.pop() for _ in range(len(container) - len(data))]
+            while len(container) > len(data):
+                print(container)
+                container.pop()
         for (i, v) in enumerate(data):
-            if (c := container[i]) != v:
-                if isinstance(c, v.__class__) and isinstance(v, (list, dict)):
-                    update(c, v)
-                else:
-                    container[i] = v
+            if container[i] != v:
+                container[i] = v
 
 
-def gen_schema(models: list[tuple[tuple[str, ...], type[BaseModel]]]) -> dict:
+def gen_schema(models: list[tuple[DomainType, type[BaseModel]]]) -> dict:
     # Create a temporary model to contain *every* model in the file.
     temp_model = create_model(
         "KayakuJSONSchema",

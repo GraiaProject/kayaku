@@ -181,8 +181,8 @@ class Prettifier:
         new_arr = Array().__post_init__()
         self.layer += 1
         # Preserve container tail
-        if arr and not arr.json_container_trailing_comma and (v := arr.pop()):
-            v = convert(v)
+        if arr and not arr.json_container_trailing_comma:
+            v = convert(arr.pop())
             self.swap_tail(v, arr)
             arr.append(v)
         for v in arr:
