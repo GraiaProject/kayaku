@@ -88,6 +88,22 @@ def _bootstrap_files():
 
 
 def initialize(specs: Dict[str, str], *, __bootstrap: bool = True) -> None:
+    """Initialize Kayaku.
+
+    This operation will load `specs` as a `source pattern -> path pattern` mapping.
+
+    Example:
+
+        class Connection(ConfigModel, domain="my_mod.config.connection"):
+            account: int | None = None
+            "Account"
+            password: str | None = None
+            "password"
+
+        initialize({"{**}.connection": "./config/connection.jsonc:{**}})
+
+    Above will make `Connection` stored in `./config/connection.jsonc`'s `["my_mod"]["config"]` section.
+    """
     exceptions: list[Exception] = []
     for src, path in specs.items():
         try:
