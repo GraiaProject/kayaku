@@ -46,7 +46,7 @@ def _collect_comments(obj: JType) -> set[str]:
 
 
 def gen_field_doc(field: ModelField, doc: str | None) -> str:
-    type_repr = f"@type: {dict(field.__repr_args__())['type']}"
+    type_repr = f"@type: {inspect.formatannotation(field.outer_type_)}"
     return f"{doc}\n\n{type_repr}" if doc else type_repr
 
 

@@ -40,7 +40,7 @@ def test_format_model():
     * B
     * Annotation: B
     * 
-    * @type: Mapping[str, str]
+    * @type: Dict[str, str]
     */
 }
 """
@@ -67,14 +67,14 @@ def test_format_model():
             * B
             * Annotation: B
             * 
-            * @type: Mapping[str, str]
+            * @type: Dict[str, str]
             */
             "c": ["123"],
             "b": {"a": "c"},
             /*
             * Any E
             * 
-            * @type: Optional[Any]
+            * @type: Any
             */
             "e": null
         }
