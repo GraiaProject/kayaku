@@ -8,7 +8,7 @@ from lark.visitors import Transformer as BaseTransformer
 from lark.visitors import merge_transformers, v_args
 
 from . import wsc
-from .types import (  # noqa: F401
+from .types import (
     WSC,
     Array,
     Float,

@@ -12,7 +12,7 @@ dependencies = [
     "loguru>=0.6.0",
 ]
 name = "kayaku"
-version = "0.4.0rc1"
+version = "0.4.0rc2"
 description = "An powerful and flexible configuration solution."
 readme = "README.md"
 classifiers = [
@@ -78,3 +78,6 @@ python_files = "tests/*"
 ignore = [
     "./tests"
 ]
+
+[tool.isort]
+profile = "black"

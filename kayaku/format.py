@@ -13,7 +13,6 @@ from .backend.types import (
     Array,
     BlockStyleComment,
     Comment,
-    JContainer,
     JObject,
     JString,
     JType,
