@@ -95,7 +95,7 @@ class PathSpec:
                 fmt_sect.extend(ext)
             else:
                 fmt_sect.append(next(formatted_it) if p is PathFill.SINGLE else p)
-        return FormattedPath(Path(*fmt_path), fmt_sect)
+        return FormattedPath(Path("/".join(fmt_path)), fmt_sect)  # Allow absolute path
 
 
 _testing: ContextVar[bool] = ContextVar("kayaku.__testing__", default=False)
@@ -116,7 +116,7 @@ class FormattedPath:
 
 def parse_path(spec: str) -> PathSpec:
     replacer = {"{*}": PathFill.SINGLE, "{}": PathFill.SINGLE, "{**}": PathFill.EXTEND}
-    location, section = spec.split(":", 1)
+    location, section = spec.rsplit(":", 1)
     if ":" in section:
         raise ValueError(f"Spec {spec!r} contains multiple ':'")
     path_parts: list[str | PathFill] = [replacer.get(l, l) for l in location.split("/")]
