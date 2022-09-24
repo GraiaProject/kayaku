@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pydantic import BaseModel, Field, create_model
@@ -14,9 +15,13 @@ def update(container: JObject | Array, data: Any, delete: bool = False):
     if container == data:
         return
     if isinstance(container, JObject):
-        assert isinstance(data, dict)
+        assert isinstance(data, Mapping)
         for k, v in data.items():
-            if k in container and isinstance(v, (list, dict)):
+            if (
+                k in container
+                and isinstance(v, (Mapping, Sequence))
+                and isinstance(container[k], v.__class__)
+            ):
                 update(container[k], v)
             else:
                 container[k] = v
@@ -24,7 +29,7 @@ def update(container: JObject | Array, data: Any, delete: bool = False):
             for k in [k for k in container if k not in data]:
                 del container[k]
     else:
-        assert isinstance(data, (list, tuple))
+        assert isinstance(data, Sequence)
         if len(data) > len(container):
             container.extend(None for _ in range(len(data) - len(container)))
         else:

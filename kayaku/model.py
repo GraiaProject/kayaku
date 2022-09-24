@@ -39,6 +39,12 @@ T_Model = TypeVar("T_Model", bound=ConfigModel)
 
 
 def create(cls: Type[T_Model], flush: bool = False) -> T_Model:
+    """Create a model.
+
+    Specifying `flush` will force a model-level data reload.
+
+    Note: It's *highly* recommended that you `create` a model every time (for safe reload).
+    """
     from .domain import _reg
 
     if flush:
@@ -55,6 +61,7 @@ def create(cls: Type[T_Model], flush: bool = False) -> T_Model:
 
 
 def save(model: Union[T_Model, Type[T_Model]]) -> None:
+    """Save a model."""
     from . import backend as json5
     from .domain import _reg
 
@@ -66,3 +73,22 @@ def save(model: Union[T_Model, Type[T_Model]]) -> None:
         container = container.setdefault(sect, {})
     update(container, inst.dict(by_alias=True))
     fmt_path.path.write_text(json5.dumps(Prettifier().prettify(document)), "utf-8")
+
+
+def save_all() -> None:
+    """Save every model in kayaku.
+
+    Very useful if you want to reflect changes on cleanup.
+    """
+    from . import backend as json5
+    from .domain import _reg, file_map
+
+    for path, store in file_map.items():
+        document = json5.loads(path.read_text("utf-8"))
+        for section, classes in store.items():
+            container = document
+            for sect in section:
+                container = container.setdefault(sect, {})
+            for cls in classes:
+                update(container, _reg.model_map[cls].dict(by_alias=True))
+        path.write_text(json5.dumps(Prettifier().prettify(document)), "utf-8")

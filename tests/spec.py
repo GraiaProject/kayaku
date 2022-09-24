@@ -30,8 +30,6 @@ def test_parse_spec_err():
         parse_source("*")
     with pytest.raises(ValueError):
         parse_path("{**}:{**}")
-    with pytest.raises(ValueError):
-        parse_path("a::b")
 
 
 def test_format_path_spec():
