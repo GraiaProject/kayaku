@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import inspect
-from typing import Iterable
+from dataclasses import MISSING, Field, asdict, is_dataclass
+from typing import TYPE_CHECKING, Iterable, cast
 
 from pydantic import BaseModel
 from pydantic.fields import ModelField
@@ -18,6 +19,9 @@ from .backend.types import (
     JType,
     convert,
 )
+
+if TYPE_CHECKING:
+    from .model import ConfigModel
 
 
 def _parse_wsc(wsc_iter: Iterable[WSC]) -> set[str]:
@@ -44,48 +48,50 @@ def _collect_comments(obj: JType) -> set[str]:
     return res
 
 
-def gen_field_doc(field: ModelField, doc: str | None) -> str:
-    type_repr = f"@type: {inspect.formatannotation(field.outer_type_)}"
+def gen_field_doc(field: Field, doc: str | None) -> str:
+    type_repr = f"@type: {inspect.formatannotation(field.type)}"
     return f"{doc}\n\n{type_repr}" if doc else type_repr
 
 
 def format_exist(
-    fields: dict[str, tuple[ModelField, str | None]],
+    fields: dict[str, tuple[Field, str | None]],
     container: JObject,
 ) -> None:
-    for k, v in list(container.items()):
+    for k, v in container.items():
         if k in fields:
             field, doc = fields.pop(k)
             k: JString = convert(k)
-            conv_v: JType = convert(v)
-            container[k] = conv_v
+            container[k] = convert(v)
             exclude = _collect_comments(k)
             if (d := gen_field_doc(field, doc)) not in exclude:
                 k.json_before.append(BlockStyleComment(d))
 
 
 def format_not_exist(
-    fields: dict[str, tuple[ModelField, str | None]],
+    fields: dict[str, tuple[Field, str | None]],
     container: JObject,
 ) -> None:
     exclude = _collect_comments(container)
     for k, (field, doc) in fields.items():
         k = convert(k)
-        v = convert(
-            field.default.dict(by_alias=True)
-            if isinstance(field.default, BaseModel)
-            else field.default
-        )
-        container[k] = v
+        if is_dataclass(field.default):
+            v = asdict(field.default)
+        elif field.default is MISSING:
+            v = None
+        else:
+            v = field.default
+        container[k] = convert(v)
         if (d := gen_field_doc(field, doc)) not in exclude:
             k.json_before.append(BlockStyleComment(d))
 
 
-def format_with_model(container: JObject, model: type[BaseModel]) -> None:
+def format_with_model(container: JObject, model: type[ConfigModel]) -> None:
     if not isinstance(container, JObject):
         raise TypeError(f"{container} is not a json object.")
-    fields: dict[str, tuple[ModelField, str | None]] = {
-        k: (f, f.field_info.description) for k, f in model.__fields__.items()
+
+    fields = {
+        k: (f, cast(str | None, f.metadata.get("description")))
+        for k, f in model.__dataclass_fields__.items()
     }
     format_exist(fields, container)
     format_not_exist(fields, container)

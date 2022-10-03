@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any
+from dataclasses import field
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field, create_model
 from typing_extensions import TypeAlias
 
+from dc_schema import get_schema
+
 from .backend.types import Array, JObject
+from .model import ConfigModel
 
 DomainType: TypeAlias = "tuple[str, ...]"
 
@@ -41,7 +45,9 @@ def update(container: JObject | Array, data: Any, delete: bool = False):
                 container[i] = v
 
 
-def gen_schema(models: list[tuple[DomainType, type[BaseModel]]]) -> dict:
+# FIXME: description
+def gen_schema(models: list[tuple[DomainType, type[ConfigModel]]]) -> dict:
+
     # Create a temporary model to contain *every* model in the file.
     temp_model = create_model(
         "KayakuJSONSchema",
@@ -53,7 +59,6 @@ def gen_schema(models: list[tuple[DomainType, type[BaseModel]]]) -> dict:
             for _, model in models
         },
     )
-    # Generate a temporary schema. We only need the "properties" and "definitions" part.
     generated_schema = temp_model.schema(by_alias=True, ref_template="#/$defs/{model}")
     qualname_ref_map: dict = generated_schema["properties"]
     definitions: dict = generated_schema["definitions"]

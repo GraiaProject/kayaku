@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import Any, Callable, TextIO
 
-from loguru import logger
-
 from . import wsc
 from .types import AnyNumber, Float, Identifier, Integer, JLiteral, JNumber, JString
 

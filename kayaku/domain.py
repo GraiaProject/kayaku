@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import Dict, Tuple, Type
 
 import pydantic
+from dacite.core import from_dict
 
-from kayaku.backend.types import JObject
-from kayaku.utils import gen_schema
+from .backend.types import JObject
+from .utils import gen_schema
 
 from .format import format_with_model
 from .model import ConfigModel
@@ -43,7 +44,7 @@ def _insert_domain(domains: DomainType) -> None:
     section = tuple(fmt_path.section)
     if section in _reg.domain_occupation.setdefault(path, set()):
         raise NameError(f"{path.as_posix()}::{'.'.join(section)} is occupied!")
-    for f_name in cls.__fields__:
+    for f_name in cls.__dataclass_fields__:
         sub_sect = section + (f_name,)
         if sub_sect in _reg.domain_occupation[path]:
             raise NameError(f"{path.as_posix()}::{'.'.join(sub_sect)} is occupied!")
@@ -66,7 +67,7 @@ def _bootstrap_files():
     for path, sect_map in file_map.items():
         document = json5.loads(path.read_text(encoding="utf-8") or "{}")
         failed: list[pydantic.ValidationError] = []
-        model_list: list[tuple[DomainType, type[pydantic.BaseModel]]] = []
+        model_list: list[tuple[DomainType, type[ConfigModel]]] = []
         for sect, classes in sect_map.items():
             model_list.extend((sect, cls) for cls in classes)
             container = document
@@ -74,7 +75,7 @@ def _bootstrap_files():
                 container = container.setdefault(s, JObject())
             for cls in classes:
                 try:
-                    _reg.model_map[cls] = cls.parse_obj(container)
+                    _reg.model_map[cls] = from_dict(cls, container)
                 except pydantic.ValidationError as e:
                     failed.append(e)
             for cls in classes:

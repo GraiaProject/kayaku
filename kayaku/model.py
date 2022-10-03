@@ -1,5 +1,10 @@
-from typing import Tuple, Type, TypeVar, Union, cast
+from __future__ import annotations
 
+from dataclasses import dataclass, fields
+from inspect import signature
+from typing import TYPE_CHECKING, Callable, Tuple, Type, TypeVar, Union, cast
+
+from attrs import define
 from loguru import logger
 from pydantic import BaseConfig, BaseModel, Extra
 from pydantic.utils import generate_model_signature
@@ -8,10 +13,15 @@ from .doc_parse import store_field_description
 from .pretty import Prettifier
 from .utils import update
 
+if TYPE_CHECKING:
+    from .model import ConfigModel
 
-class ConfigModel(BaseModel):
-    def __init_subclass__(cls, domain: str) -> None:
+
+def config(cls=None, /, *, domain: str, **kwargs):
+    def wrapper(cls: type) -> type[ConfigModel]:
         from .domain import _reg, domain_map, file_map
+
+        cls = cast(type[ConfigModel], dataclass(cls, **kwargs))
 
         domain_tup: Tuple[str, ...] = tuple(domain.split("."))
         if not all(domain_tup):
@@ -23,14 +33,10 @@ class ConfigModel(BaseModel):
                 cls.__module__ == other.__module__
                 and cls.__qualname__ == other.__qualname__
             ):
-                if other.__signature__ != (
-                    sig := generate_model_signature(
-                        cls.__init__, cls.__fields__, cls.__config__
-                    )
-                ):
+                if fields(cls) != fields(other):
                     logger.warning(f"{cls} changed signature!")
-                    logger.warning(f"From: {other.__signature__}")
-                    logger.warning(f"To  : {sig}")
+                    logger.warning(f"From: {signature(other)}")
+                    logger.warning(f"To  : {signature(cls)}")
                     logger.warning(
                         "This change will not reflect in your schema or comments until next initialization!"
                     )
@@ -41,7 +47,7 @@ class ConfigModel(BaseModel):
                 file_map[fmt_path.path][tuple(fmt_path.section)].remove(other)
                 file_map[fmt_path.path][tuple(fmt_path.section)].append(cls)
                 create(cls, flush=True)
-                return
+                return cls
 
             raise NameError(f"{domain!r} is already occupied by {other!r}")
         domain_map[domain_tup] = cls
@@ -52,11 +58,10 @@ class ConfigModel(BaseModel):
         else:
             _reg.postponed.append(domain_tup)
         store_field_description(cls)
-        return super().__init_subclass__()
 
-    class Config(BaseConfig):
-        extra = Extra.ignore
-        validate_assignment: bool = True
+        return cls
+
+    return wrapper if cls is None else wrapper(cls)
 
 
 T_Model = TypeVar("T_Model", bound=ConfigModel)
