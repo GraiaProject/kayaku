@@ -54,26 +54,26 @@ def escape_string(string: str, **escapes: str | int | None) -> str:
 
 class Encoder:
     def __init__(self, fp: TextIO):
+        self.encode_func: dict[tuple[type, ...], Callable[[Any], None]] = {
+            (bool, type(None), JLiteral): self.encode_literal,
+            (JNumber, int, float): self.encode_number,
+            (str,): self.encode_string,
+            (dict,): self.encode_dict,
+            (list, tuple): self.encode_iterable,
+        }
         self.fp = fp
 
     def encode(self, obj: Any) -> None:
-        if isinstance(obj, bool) or obj is None:
-            self.encode_literal(JLiteral(obj))
-        elif isinstance(obj, (JNumber, int, float)):
-            self.encode_number(obj)
-        elif isinstance(obj, str):
-            self.encode_string(obj)
-        elif isinstance(obj, dict):
-            self.encode_dict(obj)
-        elif isinstance(obj, (list, tuple)):
-            self.encode_iterable(obj)
-        elif isinstance(obj, JLiteral):
-            self.encode_literal(obj)
-        else:
-            raise NotImplementedError(f"Unknown type: {type(obj)}")
+        for typ_tuple, func in self.encode_func.items():
+            if isinstance(obj, typ_tuple):
+                func(obj)
+                return
+        raise NotImplementedError(f"Unknown type: {type(obj)}")
 
     @with_style
-    def encode_literal(self, obj: JLiteral) -> None:
+    def encode_literal(self, obj: JLiteral | bool | None) -> None:
+        if not isinstance(obj, JLiteral):
+            obj = JLiteral(obj)
         if obj.value is True:
             self.fp.write("true")
         elif obj.value is False:

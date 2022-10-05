@@ -1,23 +1,20 @@
 from __future__ import annotations
 
+from dataclasses import asdict as to_dict
 from dataclasses import dataclass, fields
 from inspect import signature
-from typing import TYPE_CHECKING, Callable, Tuple, Type, TypeVar, Union, cast
+from typing import Tuple, Type, TypeVar, Union, cast
 
-from attrs import define
+from dacite.core import from_dict
 from loguru import logger
-from pydantic import BaseConfig, BaseModel, Extra
-from pydantic.utils import generate_model_signature
 
 from .doc_parse import store_field_description
 from .pretty import Prettifier
+from .schema_gen import ConfigModel
 from .utils import update
 
-if TYPE_CHECKING:
-    from .model import ConfigModel
 
-
-def config(cls=None, /, *, domain: str, **kwargs):
+def config(*, domain: str, **kwargs):
     def wrapper(cls: type) -> type[ConfigModel]:
         from .domain import _reg, domain_map, file_map
 
@@ -61,7 +58,7 @@ def config(cls=None, /, *, domain: str, **kwargs):
 
         return cls
 
-    return wrapper if cls is None else wrapper(cls)
+    return wrapper
 
 
 T_Model = TypeVar("T_Model", bound=ConfigModel)
@@ -84,7 +81,7 @@ def create(cls: Type[T_Model], flush: bool = False) -> T_Model:
         container = document
         for sect in fmt_path.section:
             container = container[sect]
-        _reg.model_map[cls] = cls.parse_obj(container)
+        _reg.model_map[cls] = from_dict(cls, container)
 
     return cast(T_Model, _reg.model_map[cls])
 
@@ -100,7 +97,7 @@ def save(model: Union[T_Model, Type[T_Model]]) -> None:
     container = document
     for sect in fmt_path.section:
         container = container.setdefault(sect, {})
-    update(container, inst.dict(by_alias=True))
+    update(container, to_dict(inst))
     fmt_path.path.write_text(json5.dumps(Prettifier().prettify(document)), "utf-8")
 
 
@@ -119,5 +116,5 @@ def save_all() -> None:
             for sect in section:
                 container = container.setdefault(sect, {})
             for cls in classes:
-                update(container, _reg.model_map[cls].dict(by_alias=True))
+                update(container, to_dict(_reg.model_map[cls]))
         path.write_text(json5.dumps(Prettifier().prettify(document)), "utf-8")

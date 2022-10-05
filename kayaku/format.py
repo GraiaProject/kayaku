@@ -2,10 +2,7 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import MISSING, Field, asdict, is_dataclass
-from typing import TYPE_CHECKING, Iterable, cast
-
-from pydantic import BaseModel
-from pydantic.fields import ModelField
+from typing import Iterable, Union, cast
 
 from kayaku.pretty import Prettifier
 
@@ -19,9 +16,7 @@ from .backend.types import (
     JType,
     convert,
 )
-
-if TYPE_CHECKING:
-    from .model import ConfigModel
+from .schema_gen import ConfigModel
 
 
 def _parse_wsc(wsc_iter: Iterable[WSC]) -> set[str]:
@@ -74,12 +69,16 @@ def format_not_exist(
     exclude = _collect_comments(container)
     for k, (field, doc) in fields.items():
         k = convert(k)
-        if is_dataclass(field.default):
-            v = asdict(field.default)
-        elif field.default is MISSING:
+        if field.default_factory is not MISSING:
+            default = field.default_factory()
+        else:
+            default = field.default
+        if is_dataclass(default):
+            v = asdict(default)
+        elif default is MISSING:
             v = None
         else:
-            v = field.default
+            v = default
         container[k] = convert(v)
         if (d := gen_field_doc(field, doc)) not in exclude:
             k.json_before.append(BlockStyleComment(d))
@@ -90,7 +89,7 @@ def format_with_model(container: JObject, model: type[ConfigModel]) -> None:
         raise TypeError(f"{container} is not a json object.")
 
     fields = {
-        k: (f, cast(str | None, f.metadata.get("description")))
+        k: (f, cast(Union[str, None], f.metadata.get("description")))
         for k, f in model.__dataclass_fields__.items()
     }
     format_exist(fields, container)

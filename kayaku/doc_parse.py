@@ -5,8 +5,7 @@ import inspect
 from types import MappingProxyType
 from typing import TYPE_CHECKING, cast
 
-if TYPE_CHECKING:
-    from .model import ConfigModel
+from .schema_gen import ConfigModel
 
 
 def cleanup_src(src: str) -> str:
@@ -23,16 +22,9 @@ def store_field_description(
     node: ast.ClassDef = cast(
         ast.ClassDef, ast.parse(cleanup_src(inspect.getsource(cls))).body[0]
     )
-    doc_store: dict[str, str] = {}
     for i, stmt in enumerate(node.body):
         name: str | None = None
-        if (
-            isinstance(stmt, ast.Assign)
-            and len(stmt.targets) == 1
-            and isinstance(stmt.targets[0], ast.Name)
-        ):
-            name = stmt.targets[0].id
-        elif isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+        if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
             name = stmt.target.id
         if (
             name in cls.__dataclass_fields__
@@ -43,5 +35,5 @@ def store_field_description(
             and "description" not in (field := cls.__dataclass_fields__[name]).metadata
         ):
             field.metadata = MappingProxyType(
-                field.metadata | {"description": inspect.cleandoc(doc_string)}
+                {**field.metadata.copy(), "description": inspect.cleandoc(doc_string)}
             )

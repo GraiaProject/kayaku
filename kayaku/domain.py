@@ -1,19 +1,17 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Tuple, Type
 
-import pydantic
-from dacite.core import from_dict
+from dacite.exceptions import DaciteError
 
 from .backend.types import JObject
-from .utils import gen_schema
-
 from .format import format_with_model
-from .model import ConfigModel
+from .schema_gen import ConfigModel, gen_schema_from_list
 from .spec import FormattedPath, parse_path, parse_source
 from .storage import insert, lookup
+from .utils import KayakuEncoder, from_dict
 
 DomainType = Tuple[str, ...]
 
@@ -31,7 +29,7 @@ class _Registry:
 
     model_map: dict[type[ConfigModel], ConfigModel] = field(default_factory=dict)
 
-    domain_occupation: dict[Path, set[DomainType]] = field(default_factory=dict)
+    domain_occupation: dict[Path, set[tuple[str, ...]]] = field(default_factory=dict)
 
 
 _reg = _Registry()
@@ -64,9 +62,9 @@ def _bootstrap_files():
     from . import backend as json5
     from .pretty import Prettifier
 
+    failed: dict[Path, list[DaciteError]] = {}
     for path, sect_map in file_map.items():
         document = json5.loads(path.read_text(encoding="utf-8") or "{}")
-        failed: list[pydantic.ValidationError] = []
         model_list: list[tuple[DomainType, type[ConfigModel]]] = []
         for sect, classes in sect_map.items():
             model_list.extend((sect, cls) for cls in classes)
@@ -76,16 +74,18 @@ def _bootstrap_files():
             for cls in classes:
                 try:
                     _reg.model_map[cls] = from_dict(cls, container)
-                except pydantic.ValidationError as e:
-                    failed.append(e)
+                except DaciteError as e:
+                    failed.setdefault(path, []).append(e)
             for cls in classes:
                 format_with_model(container, cls)
         schema_path = path.with_suffix(".schema.json")  # TODO: Customization
         document["$schema"] = schema_path.as_uri()
-        schema_path.write_text(json5.dumps(gen_schema(model_list)), encoding="utf-8")
-        path.write_text(json5.dumps(Prettifier().prettify(document)), encoding="utf-8")
-        if failed:
-            raise ValueError(f"{len(failed)} models failed to validate.", failed)
+        with schema_path.open("w", encoding="utf-8") as fp:
+            json5.dump(gen_schema_from_list(model_list), fp)
+        with path.open("w", encoding="utf-8") as fp:
+            json5.dump(Prettifier().prettify(document), fp, KayakuEncoder)
+    if failed:
+        raise ValueError(failed)
 
 
 def initialize(specs: Dict[str, str], *, __bootstrap: bool = True) -> None:
@@ -95,7 +95,7 @@ def initialize(specs: Dict[str, str], *, __bootstrap: bool = True) -> None:
 
     Example:
 
-        class Connection(ConfigModel, domain="my_mod.config.connection"):
+        class Connection(Dataclass, domain="my_mod.config.connection"):
             account: int | None = None
             "Account"
             password: str | None = None

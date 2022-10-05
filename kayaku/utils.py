@@ -1,18 +1,21 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping, Sequence
-from dataclasses import field
-from typing import TYPE_CHECKING, Any
+from datetime import date, datetime, time
+from typing import Any, TextIO, TypeVar
 
-from pydantic import BaseModel, Field, create_model
+from dacite.config import Config
+from dacite.core import from_dict as _from_dict
 from typing_extensions import TypeAlias
 
-from dc_schema import get_schema
-
+from .backend import Encoder
 from .backend.types import Array, JObject
-from .model import ConfigModel
+from .schema_gen import ConfigModel
 
 DomainType: TypeAlias = "tuple[str, ...]"
+
+T = TypeVar("T", bound=ConfigModel)
 
 
 def update(container: JObject | Array, data: Any, delete: bool = False):
@@ -45,34 +48,33 @@ def update(container: JObject | Array, data: Any, delete: bool = False):
                 container[i] = v
 
 
-# FIXME: description
-def gen_schema(models: list[tuple[DomainType, type[ConfigModel]]]) -> dict:
-
-    # Create a temporary model to contain *every* model in the file.
-    temp_model = create_model(
-        "KayakuJSONSchema",
-        **{
-            f"kayaku::{model.__module__}.{model.__qualname__}": (
-                model,
-                Field(..., alias=f"{model.__module__}.{model.__qualname__}"),
-            )
-            for _, model in models
-        },
+def from_dict(model: type[T], data: dict[str, Any]) -> T:
+    return _from_dict(
+        model,
+        data,
+        Config(
+            type_hooks={
+                datetime: datetime.fromisoformat,
+                time: time.fromisoformat,
+                date: date.fromisoformat,
+                re.Pattern: re.compile,
+            }
+        ),
     )
-    generated_schema = temp_model.schema(by_alias=True, ref_template="#/$defs/{model}")
-    qualname_ref_map: dict = generated_schema["properties"]
-    definitions: dict = generated_schema["definitions"]
-    # Generate a new schema
-    schema: dict[str, Any] = {
-        "$schema": "http://json-schema.org/schema",
-        "type": "object",
-    }
-    for domains, model in models:
-        container: dict = schema
-        for d in domains:
-            container = container.setdefault("properties", {}).setdefault(
-                d, {"type": "object"}
-            )
-        container.update(qualname_ref_map[f"{model.__module__}.{model.__qualname__}"])
-    schema["$defs"] = definitions
-    return schema
+
+
+class KayakuEncoder(Encoder):
+    def __init__(self, fp: TextIO):
+        super().__init__(fp)
+        self.encode_func.update(
+            {
+                (datetime, date, time): self.encode_datetime,
+                (re.Pattern,): self.encode_re_pattern,
+            }
+        )
+
+    def encode_datetime(self, obj: datetime | date | time):
+        return self.encode_string(obj.isoformat())
+
+    def encode_re_pattern(self, obj: re.Pattern) -> None:
+        return self.encode_string(obj.pattern)

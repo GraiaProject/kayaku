@@ -1,8 +1,8 @@
 import inspect
+from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
 import pytest
-from pydantic import BaseModel
 
 from kayaku import backend as json5
 from kayaku.doc_parse import store_field_description
@@ -11,17 +11,23 @@ from kayaku.pretty import Prettifier
 
 
 def test_format_model():
-    class Model(BaseModel):
-        a: int = 4
-        """Annotation: A"""
-        b: Dict[str, str] = {"a": "c"}
-        """B
-        Annotation: B
-        """
+    @dataclass
+    class D:
+        a: int = 5
+
+    @dataclass
+    class Model:
         c: List[str]
         "Fantasy C"
         e: Any
         "Any E"
+        a: int = 4
+        """Annotation: A"""
+        b: Dict[str, str] = field(default_factory=lambda: {"a": "c"})
+        """B
+        Annotation: B
+        """
+        default: D = field(default_factory=D)
 
     store_field_description(Model)
 
@@ -70,13 +76,15 @@ def test_format_model():
             * @type: Dict[str, str]
             */
             "c": ["123"],
-            "b": {"a": "c"},
             /*
             * Any E
             * 
             * @type: Any
             */
-            "e": null
+            "e": null,
+            "b": {"a": "c"},
+            /*@type: format.test_format_model.<locals>.D*/
+            "default": {"a": 5}
         }
         """
     )

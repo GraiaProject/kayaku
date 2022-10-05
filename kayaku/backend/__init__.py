@@ -10,7 +10,7 @@ from typing import Any, TextIO
 
 from lark.lark import Lark
 
-from .encode import Encoder
+from .encode import Encoder as Encoder
 from .env import DEBUG
 from .transform import transformer
 
@@ -55,18 +55,18 @@ def load(file: TextIO | Path) -> str:
     return loads(data)
 
 
-def dumps(obj: Any) -> str:
+def dumps(obj: Any, encoder_cls: type[Encoder] = Encoder) -> str:
     """
     Serialize JSON to a string
     """
     fp = io.StringIO()
-    Encoder(fp).encode(obj)
+    encoder_cls(fp).encode(obj)
     return fp.getvalue()
 
 
-def dump(obj: Any, out: TextIO | Path):
+def dump(obj: Any, out: TextIO | Path, encoder_cls: type[Encoder] = Encoder):
     """
     Serialize JSON to a file-like object
     """
     out = out.open("w") if isinstance(out, Path) else out
-    Encoder(out).encode(obj)
+    encoder_cls(out).encode(obj)
