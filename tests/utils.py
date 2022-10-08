@@ -1,79 +1,14 @@
+import re
 from copy import deepcopy
 from dataclasses import dataclass
+from datetime import date, datetime, time
+from enum import Enum
 
 from kayaku.backend import dumps, loads
+from kayaku.backend.types import JObject
 from kayaku.pretty import Prettifier
 from kayaku.schema_gen import gen_schema_from_list
-from kayaku.utils import update
-
-
-@dataclass
-class A:
-    val: int = 5
-
-
-@dataclass
-class B:
-    a: A
-    var: str
-
-
-@dataclass
-class C:
-    foo: int
-
-
-A_name = f"{A.__module__}.{A.__qualname__}"
-B_name = f"{B.__module__}.{B.__qualname__}"
-C_name = f"{C.__module__}.{C.__qualname__}"
-
-
-def test_schema_gen():
-    assert gen_schema_from_list(
-        [
-            (("main", "a"), A),
-            (("main", "b"), B),
-            (("main", "c"), C),
-        ]
-    ) == {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": "object",
-        "properties": {
-            "main": {
-                "type": "object",
-                "properties": {
-                    "a": {"allOf": [{"$ref": f"#/$defs/{A_name}"}]},
-                    "b": {"allOf": [{"$ref": f"#/$defs/{B_name}"}]},
-                    "c": {"allOf": [{"$ref": f"#/$defs/{C_name}"}]},
-                },
-                "required": ["a", "b", "c"],
-            }
-        },
-        "required": ["main"],
-        "$defs": {
-            A_name: {
-                "title": A_name,
-                "type": "object",
-                "properties": {"val": {"default": 5, "type": "integer"}},
-            },
-            B_name: {
-                "title": B_name,
-                "type": "object",
-                "properties": {
-                    "a": {"$ref": f"#/$defs/{A_name}"},
-                    "var": {"type": "string"},
-                },
-                "required": ["a", "var"],
-            },
-            C_name: {
-                "title": C_name,
-                "type": "object",
-                "properties": {"foo": {"type": "integer"}},
-                "required": ["foo"],
-            },
-        },
-    }
-
+from kayaku.utils import KayakuEncoder, from_dict, update
 
 update_input = """\
 {
@@ -148,3 +83,67 @@ def test_json_update():
     o_obj = loads(update_input)
     update(o_obj, obj)
     assert dumps(Prettifier().prettify(o_obj)) == update_output_no_del
+
+
+class E(Enum):
+    A = 1
+    B = 2
+    C = 3
+
+
+def test_extra_load():
+    ...
+
+
+def test_extra_dump():
+    from kayaku.backend import dumps
+    from kayaku.pretty import Prettifier
+
+    dt_now = datetime.now()
+
+    assert (
+        dumps(
+            Prettifier().prettify(
+                JObject(
+                    {
+                        "a": E.A,
+                        "b": dt_now.date(),
+                        "c": dt_now.time(),
+                        "d": dt_now,
+                        "e": re.compile(r"(?P<name>\d+)"),
+                    }
+                )
+            ),
+            KayakuEncoder,
+        )
+        == rf"""{{
+    "a": 1,
+    "b": "{dt_now.date().isoformat()}",
+    "c": "{dt_now.time().isoformat()}",
+    "d": "{dt_now.isoformat()}",
+    "e": "(?P<name>\\d+)"
+}}"""
+    )
+
+
+def test_extra_load():
+    dt_now = datetime.now()
+
+    @dataclass
+    class Obj:
+        a: E
+        b: date
+        c: time
+        d: datetime
+        e: re.Pattern
+
+    obj = {
+        "a": 1,
+        "b": f"{dt_now.date().isoformat()}",
+        "c": f"{dt_now.time().isoformat()}",
+        "d": f"{dt_now.isoformat()}",
+        "e": r"(?P<name>\d+)",
+    }
+    assert from_dict(Obj, obj) == Obj(
+        E.A, dt_now.date(), dt_now.time(), dt_now, re.compile(r"(?P<name>\d+)")
+    )

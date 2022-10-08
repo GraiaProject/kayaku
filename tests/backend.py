@@ -3,7 +3,7 @@ import io
 import pytest
 
 from kayaku import backend
-from kayaku.backend.types import Comment, JLiteral, WhiteSpace, convert
+from kayaku.backend.types import Comment, JWrapper, WhiteSpace, convert
 from kayaku.backend.wsc import encode_wsc
 
 test_input = """\
@@ -94,7 +94,7 @@ def test_dump_val():
     with pytest.raises(NotImplementedError):
         backend.dumps(object())
     with pytest.raises(NotImplementedError):
-        backend.dumps(JLiteral(-1))
+        backend.dumps(JWrapper(NotImplemented))
 
 
 def test_convert():

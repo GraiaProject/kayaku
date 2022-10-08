@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import enum
 import re
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime, time
@@ -58,7 +59,8 @@ def from_dict(model: type[T], data: dict[str, Any]) -> T:
                 time: time.fromisoformat,
                 date: date.fromisoformat,
                 re.Pattern: re.compile,
-            }
+            },
+            cast=[enum.Enum],
         ),
     )
 
@@ -70,10 +72,14 @@ class KayakuEncoder(Encoder):
             {
                 (datetime, date, time): self.encode_datetime,
                 (re.Pattern,): self.encode_re_pattern,
+                (enum.Enum,): self.encode_enum,
             }
         )
 
-    def encode_datetime(self, obj: datetime | date | time):
+    def encode_enum(self, obj: enum.Enum) -> None:
+        return self.encode(obj.value)
+
+    def encode_datetime(self, obj: datetime | date | time) -> None:
         return self.encode_string(obj.isoformat())
 
     def encode_re_pattern(self, obj: re.Pattern) -> None:

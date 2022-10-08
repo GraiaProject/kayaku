@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Callable, TextIO
 
 from . import wsc
-from .types import AnyNumber, Float, Identifier, Integer, JLiteral, JNumber, JString
+from .types import AnyNumber, Float, Identifier, Integer, JNumber, JString, JWrapper
 
 ESCAPES = {
     "\\": r"\\",
@@ -55,7 +55,8 @@ def escape_string(string: str, **escapes: str | int | None) -> str:
 class Encoder:
     def __init__(self, fp: TextIO):
         self.encode_func: dict[tuple[type, ...], Callable[[Any], None]] = {
-            (bool, type(None), JLiteral): self.encode_literal,
+            (JWrapper,): self.encode_wrapper,
+            (bool, type(None)): self.encode_bool_like,
             (JNumber, int, float): self.encode_number,
             (str,): self.encode_string,
             (dict,): self.encode_dict,
@@ -71,17 +72,18 @@ class Encoder:
         raise NotImplementedError(f"Unknown type: {type(obj)}")
 
     @with_style
-    def encode_literal(self, obj: JLiteral | bool | None) -> None:
-        if not isinstance(obj, JLiteral):
-            obj = JLiteral(obj)
-        if obj.value is True:
+    def encode_wrapper(self, obj: JWrapper) -> None:
+        return self.encode(obj.value)
+
+    def encode_bool_like(self, obj: bool | None) -> None:
+        if obj is True:
             self.fp.write("true")
-        elif obj.value is False:
+        elif obj is False:
             self.fp.write("false")
-        elif obj.value is None:
+        elif obj is None:
             self.fp.write("null")
         else:
-            raise NotImplementedError(f"Unknown literal: {obj.value}")
+            raise NotImplementedError(f"Unknown wrapped object: {obj}")
 
     @with_style
     def encode_dict(self, obj: dict) -> None:

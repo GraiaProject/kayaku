@@ -6,7 +6,10 @@ Most of the time you won't have to instantiate them manually.
 
 from __future__ import annotations
 
+import enum
 import math
+import re
+from datetime import date, datetime, time
 from enum import Enum
 from typing import Any, Generic, List, Tuple, TypeVar, overload
 
@@ -211,7 +214,7 @@ AnyNumber: TypeAlias = "Integer | Float"
 T = TypeVar("T")
 
 
-class JLiteral(JType, Generic[T]):
+class JWrapper(JType, Generic[T]):
     """
     Represents a JSON Literal and wraps the equivalent value in Python.
     """
@@ -231,7 +234,7 @@ class JLiteral(JType, Generic[T]):
         return self.value.__hash__()
 
 
-Value: TypeAlias = "JObject | Array | JString | JNumber | JLiteral | bool | None"
+Value: TypeAlias = "JObject | Array | JString | JNumber | JWrapper | bool | None"
 """
 A type alias matching the JSON Value.
 """
@@ -279,12 +282,12 @@ def convert(obj: float) -> Float:
 
 
 @overload
-def convert(obj: "bool") -> JLiteral[bool]:
+def convert(obj: "bool") -> JWrapper[bool]:
     ...
 
 
 @overload
-def convert(obj: None) -> JLiteral[None]:
+def convert(obj: None) -> JWrapper[None]:
     ...
 
 
@@ -306,8 +309,11 @@ def convert(obj: Any) -> JType:
         o = Integer(obj)
     elif isinstance(obj, float):
         o = Float(obj)
-    elif isinstance(obj, bool) or obj == None:
-        o = JLiteral(obj)
+    elif (
+        isinstance(obj, (bool, date, time, datetime, re.Pattern, enum.Enum))
+        or obj == None
+    ):
+        o = JWrapper(obj)
     else:
         raise TypeError(f"{obj} can't be automatically converted to JSONType!")
     o.__post_init__()

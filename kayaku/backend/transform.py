@@ -16,7 +16,7 @@ from .types import (
     Identifier,
     Integer,
     JContainer,
-    JLiteral,
+    JWrapper,
     JNumber,
     JObject,
     JString,
@@ -115,11 +115,11 @@ class Transformer(BaseTransformer):
     @v_args(inline=True)
     def literal(self, token: Token):
         if token.value == "true":
-            return JLiteral[bool](True)
+            return JWrapper[bool](True)
         elif token.value == "false":
-            return JLiteral[bool](False)
+            return JWrapper[bool](False)
         assert token.value == "null"
-        return JLiteral[None](None)
+        return JWrapper[None](None)
 
     @v_args(inline=True)
     def pack_wsc(self, before: list[WSC], value: JType, after: list[WSC]) -> JType:
