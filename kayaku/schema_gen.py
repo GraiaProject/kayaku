@@ -104,12 +104,8 @@ class ConfigModel(ABC):
     __dataclass_fields__: t.ClassVar[t.Dict[str, dataclasses.Field]]
 
     @classmethod
-    def __subclasscheck__(cls, oth):
+    def __subclasshook__(cls, oth):
         return isinstance(oth, type) and dataclasses.is_dataclass(oth)
-
-    @classmethod
-    def __instancecheck__(cls, instance):
-        return dataclasses.is_dataclass(instance.__class__)
 
 
 def is_sub_type(sub: t.Any, parent: t.Any) -> bool:
@@ -193,8 +189,10 @@ class SchemaGenerator:
             return self.get_union_schema(typ, default, annotation)
         elif t.get_origin(typ) == t.Literal:
             return self.get_literal_schema(typ, default, annotation)
-        if t.get_origin(typ) == t.Annotated:
+        elif t.get_origin(typ) == t.Annotated:
             return self.get_annotated_schema(typ, default)
+        elif typ == t.Any:
+            return self.get_any_schema(default, annotation)
         elif is_sub_type(typ, dict):
             return self.get_dict_schema(typ, annotation)
         elif is_sub_type(typ, list):
@@ -211,17 +209,28 @@ class SchemaGenerator:
             return self.get_bool_schema(default, annotation)
         elif is_sub_type(typ, int):
             return self.get_int_schema(default, annotation)
-        elif issubclass(typ, numbers.Number):
+        elif is_sub_type(typ, numbers.Number):
             return self.get_number_schema(default, annotation)
-        elif issubclass(typ, enum.Enum):
+        elif is_sub_type(typ, enum.Enum):
             return self.get_enum_schema(typ, default, annotation)
-        elif issubclass(typ, datetime.datetime):
+        elif is_sub_type(typ, datetime.datetime):
             return self.get_datetime_schema(annotation)
-        elif issubclass(typ, datetime.date):
+        elif is_sub_type(typ, datetime.date):
             return self.get_date_schema(annotation)
-        elif issubclass(typ, re.Pattern):
+        elif is_sub_type(typ, re.Pattern):
             return self.get_regex_schema(annotation)
         raise NotImplementedError(f"field type '{typ}' not implemented")
+
+    def get_any_schema(self, default: t.Any, annotation: SchemaAnnotation):
+        if default is _MISSING:
+            return {
+                **annotation.schema(),
+            }
+        else:
+            return {
+                "default": default,
+                **annotation.schema(),
+            }
 
     def get_union_schema(
         self, typ: t.Type, default: t.Any, annotation: SchemaAnnotation

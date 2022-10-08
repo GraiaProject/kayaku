@@ -69,3 +69,7 @@ def test_schema_gen():
             },
         },
     }
+
+    assert gen_schema_from_list([]) == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema"
+    }

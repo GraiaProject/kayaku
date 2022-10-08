@@ -31,8 +31,10 @@ from __future__ import annotations
 import dataclasses
 import datetime
 import enum
+import re
 import typing as t
 
+import pytest
 from jsonschema.validators import Draft202012Validator
 
 from kayaku.schema_gen import ConfigModel, SchemaAnnotation, SchemaGenerator
@@ -301,7 +303,6 @@ class DcLiteral:
 
 def test_get_schema_literal():
     schema = get_schema(DcLiteral)
-    print(schema)
     Draft202012Validator.check_schema(schema)
     assert schema == {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -310,6 +311,29 @@ def test_get_schema_literal():
         "properties": {
             "a": {"enum": [1, "two", 3, None]},
             "b": {"enum": [42, 43], "default": 42},
+        },
+        "required": ["a"],
+    }
+
+
+@dataclasses.dataclass
+class DcAny:
+    a: t.Any
+    x: t.Union[int, t.Any] = 4
+    b: t.Annotated[t.Any, SchemaAnnotation("B!!!")] = 5
+
+
+def test_get_schema_any():
+    schema = get_schema(DcAny)
+    Draft202012Validator.check_schema(schema)
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "DcAny",
+        "properties": {
+            "a": {},
+            "b": {"default": 5, "title": "B!!!"},
+            "x": {"anyOf": [{"type": "integer"}, {}], "default": 4},
         },
         "required": ["a"],
     }
@@ -451,6 +475,51 @@ def test_get_schema_date_time():
 
 
 @dataclasses.dataclass
+class DcRegex:
+    a: re.Pattern
+
+
+def test_get_schema_regex():
+    schema = get_schema(DcRegex)
+    print(schema)
+    Draft202012Validator.check_schema(schema)
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "DcRegex",
+        "properties": {
+            "a": {"type": "string", "format": "regex"},
+        },
+        "required": ["a"],
+    }
+
+
+@dataclasses.dataclass
+class DcNotImplemented:
+    a: type(NotImplemented)
+
+
+def test_not_implemented():
+    with pytest.raises(NotImplementedError):
+        get_schema(DcNotImplemented)
+
+
+def test_get_schema_regex():
+    schema = get_schema(DcRegex)
+    print(schema)
+    Draft202012Validator.check_schema(schema)
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "DcRegex",
+        "properties": {
+            "a": {"type": "string", "format": "regex"},
+        },
+        "required": ["a"],
+    }
+
+
+@dataclasses.dataclass
 class DcAnnotatedBook:
     title: t.Annotated[str, SchemaAnnotation(title="Title")]
 
@@ -476,6 +545,15 @@ class DcAnnotatedAuthor:
     age: t.Annotated[
         t.Union[int, float], SchemaAnnotation(description="age in years")
     ] = 42
+
+
+def test_config_model_abc():
+    @dataclasses.dataclass
+    class C:
+        a: int
+
+    assert isinstance(C(5), ConfigModel)
+    assert issubclass(C, ConfigModel)
 
 
 def test_get_schema_annotation():
