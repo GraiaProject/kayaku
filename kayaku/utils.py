@@ -11,7 +11,7 @@ from dacite.core import from_dict as _from_dict
 from typing_extensions import TypeAlias
 
 from .backend import Encoder
-from .backend.types import Array, JObject
+from .backend.types import Array, JObject, convert
 from .schema_gen import ConfigModel
 
 DomainType: TypeAlias = "tuple[str, ...]"
@@ -19,34 +19,24 @@ DomainType: TypeAlias = "tuple[str, ...]"
 T = TypeVar("T", bound=ConfigModel)
 
 
-def update(container: JObject | Array, data: Any, delete: bool = False):
+def update(container: dict, data: Any, delete: bool = False):
     if container == data:
         return
-    if isinstance(container, JObject):
-        assert isinstance(data, Mapping)
-        for k, v in data.items():
-            if (
-                k in container
-                and isinstance(v, (Mapping, Sequence))
-                and isinstance(container[k], v.__class__)
-            ):
-                update(container[k], v)
-            else:
-                container[k] = v
-        if delete:
-            for k in [k for k in container if k not in data]:
-                del container[k]
-    else:
-        assert isinstance(data, Sequence)
-        if len(data) > len(container):
-            container.extend(None for _ in range(len(data) - len(container)))
+    assert isinstance(container, dict)
+    container = convert(container)
+    assert isinstance(data, Mapping)
+    for k, v in data.items():
+        if (
+            k in container
+            and isinstance(v, Mapping)
+            and isinstance(container[k], v.__class__)
+        ):
+            update(container[k], v)
         else:
-            while len(container) > len(data):
-                print(container)
-                container.pop()
-        for (i, v) in enumerate(data):
-            if container[i] != v:
-                container[i] = v
+            container[k] = v
+    if delete:
+        for k in [k for k in container if k not in data]:
+            del container[k]
 
 
 def from_dict(model: type[T], data: dict[str, Any]) -> T:

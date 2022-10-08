@@ -76,14 +76,7 @@ class Encoder:
         return self.encode(obj.value)
 
     def encode_bool_like(self, obj: bool | None) -> None:
-        if obj is True:
-            self.fp.write("true")
-        elif obj is False:
-            self.fp.write("false")
-        elif obj is None:
-            self.fp.write("null")
-        else:
-            raise NotImplementedError(f"Unknown wrapped object: {obj}")
+        self.fp.write({True: "true", False: "false", None: "null"}[obj])
 
     @with_style
     def encode_dict(self, obj: dict) -> None:
