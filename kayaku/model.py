@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import asdict as to_dict
+from dataclasses import Field, asdict as to_dict, field
 from dataclasses import dataclass, fields
 from inspect import signature
-from typing import Tuple, Type, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Callable, Tuple, Type, TypeVar, Union, cast, overload
+from typing_extensions import dataclass_transform
 
 from dacite.core import from_dict
 from loguru import logger
@@ -13,101 +14,104 @@ from .pretty import Prettifier
 from .schema_gen import ConfigModel
 from .utils import update
 
+T = TypeVar("T")
 
-def config(*, domain: str, **kwargs):
+
+@dataclass_transform(field_specifiers=(Field, field))
+def config_stub(
+    domain: str,
+    *,
+    init=True,
+    repr=True,
+    eq=True,
+    order=False,
+    unsafe_hash=False,
+    frozen=False,
+    match_args=True,
+    kw_only=False,
+    slots=False,
+) -> Callable[[type[T]], type[T]]:
+    ...
+
+
+def config_impl(domain: str, **kwargs) -> Callable[[type], type[ConfigModel]]:
     def wrapper(cls: type) -> type[ConfigModel]:
-        from .domain import _reg, domain_map, file_map
+        from .domain import _store, insert_domain
 
-        cls = cast(type[ConfigModel], dataclass(cls, **kwargs))
-
+        cls = cast(type[ConfigModel], dataclass(**kwargs)(cls))
+        store_field_description(cls)
         domain_tup: Tuple[str, ...] = tuple(domain.split("."))
         if not all(domain_tup):
             raise ValueError(f"{domain!r} contains empty segment!")
 
-        if domain_tup in domain_map:
-            other = domain_map[domain_tup]
+        if domain_tup in _store.models:
+            store = _store.models[domain_tup]
+            other = store.cls
             if (
                 cls.__module__ == other.__module__
                 and cls.__qualname__ == other.__qualname__
             ):
-                if fields(cls) != fields(other):
-                    logger.warning(f"{cls} changed signature!")
-                    logger.warning(f"From: {signature(other)}")
-                    logger.warning(f"To  : {signature(cls)}")
-                    logger.warning(
-                        "This change will not reflect in your schema or comments until next initialization!"
-                    )
-                domain_map[domain_tup] = cls
-                _reg.model_map.pop(other)
-                fmt_path = _reg.model_path.pop(other)
-                _reg.model_path[cls] = fmt_path
-                file_map[fmt_path.path][tuple(fmt_path.section)].remove(other)
-                file_map[fmt_path.path][tuple(fmt_path.section)].append(cls)
-                create(cls, flush=True)
+                ...  # TODO: remove original occupations, inject new ones
                 return cls
 
             raise NameError(f"{domain!r} is already occupied by {other!r}")
-        domain_map[domain_tup] = cls
-        if _reg.initialized:
-            raise RuntimeError(
-                f"kayaku is already fully initialized, adding {cls} is not allowed."
-            )
-        else:
-            _reg.postponed.append(domain_tup)
-        store_field_description(cls)
-
+        insert_domain(domain_tup, cls)
         return cls
 
     return wrapper
 
 
-T_Model = TypeVar("T_Model", bound=ConfigModel)
+config = config_stub if TYPE_CHECKING else config_impl
 
 
-def create(cls: Type[T_Model], flush: bool = False) -> T_Model:
+def create(cls: Type[T], flush: bool = False) -> T:
     """Create a model.
 
     Specifying `flush` will force a model-level data reload.
 
     Note: It's *highly* recommended that you `create` a model every time (for safe reload).
     """
-    from .domain import _reg
+    from .domain import _store
 
-    if flush:
+    if cls not in _store.cls_domains or not isinstance(cls, ConfigModel):
+        raise  # TODO
+    if flush or _store.cls_domains[cls] is None:
         from . import backend as json5
 
-        fmt_path = _reg.model_path[cls]
+        fmt_path = _store.location_map[cls]
         document = json5.loads(fmt_path.path.read_text("utf-8"))
         container = document
         for sect in fmt_path.section:
             container = container[sect]
-        _reg.model_map[cls] = from_dict(cls, container)
+        _store.model_storage[cls] = from_dict(cls, container)
 
-    return cast(T_Model, _reg.model_map[cls])
+    return cast(T, _store.model_storage[cls])
 
 
-def save(model: Union[T_Model, Type[T_Model]]) -> None:
+def save(model: Union[T, Type[T]]) -> None:
     """Save a model."""
     from . import backend as json5
-    from .domain import _reg
+    from .domain import _store
 
-    inst: ConfigModel = _reg.model_map[model] if isinstance(model, type) else model
-    fmt_path = _reg.model_path[inst.__class__]
+    inst: ConfigModel = (
+        _store.model_storage[model] if isinstance(model, type) else model
+    )
+    fmt_path = _store.location_map[inst.__class__]
     document = json5.loads(fmt_path.path.read_text("utf-8"))
     container = document
     for sect in fmt_path.section:
         container = container.setdefault(sect, {})
-    update(container, to_dict(inst))
+    update(container, to_dict(inst))  # TODO
     fmt_path.path.write_text(json5.dumps(Prettifier().prettify(document)), "utf-8")
 
 
 def save_all() -> None:
     """Save every model in kayaku.
 
-    Very useful if you want to reflect changes on cleanup.
+    Very useful if you want to sync changes on cleanup.
     """
     from . import backend as json5
-    from .domain import _reg, file_map
+    from .domain import _store, file_map
 
     for path, store in file_map.items():
         document = json5.loads(path.read_text("utf-8"))
@@ -116,5 +120,5 @@ def save_all() -> None:
             for sect in section:
                 container = container.setdefault(sect, {})
             for cls in classes:
-                update(container, to_dict(_reg.model_map[cls]))
+                update(container, to_dict(_store.model_storage[cls]))  # TODO
         path.write_text(json5.dumps(Prettifier().prettify(document)), "utf-8")

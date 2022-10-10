@@ -104,7 +104,7 @@ _testing: ContextVar[bool] = ContextVar("kayaku.__testing__", default=False)
 @dataclass
 class FormattedPath:
     path: Path
-    section: list[str]
+    mount_dest: list[str]
 
     def __post_init__(self) -> None:
         if not _testing.get():
