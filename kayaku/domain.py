@@ -18,14 +18,17 @@ file_map: dict[Path, dict[DomainType, list[type[ConfigModel]]]] = {}
 
 @dataclass
 class _FileStore:
-    schemas: dict = field(
-        default_factory=lambda: {
-            "$schema": "https://json-schema.org/draft/2020-12/schema"
-        }
-    )
+    schemas: dict = field(default_factory=dict)
     generator: SchemaGenerator = field(default_factory=lambda: SchemaGenerator(None))
     mount: Dict[MountType, List[DomainType]] = field(default_factory=dict)
     field_mount_record: Set[MountType] = field(default_factory=set)
+
+    def get_schema(self) -> dict:
+        return {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            **self.schemas,
+            "$defs": self.generator.defs,
+        }
 
 
 @dataclass

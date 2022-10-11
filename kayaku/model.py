@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import Field, asdict as to_dict, field
-from dataclasses import dataclass, fields as get_fields
 import gc
-from inspect import signature
-from typing import TYPE_CHECKING, Callable, Tuple, Type, TypeVar, Union, cast, overload
-from typing_extensions import dataclass_transform
+from dataclasses import Field
+from dataclasses import asdict as to_dict
+from dataclasses import dataclass, field
+from dataclasses import fields as get_fields
+from typing import TYPE_CHECKING, Callable, Tuple, Type, TypeVar, Union, cast
 
 from dacite.core import from_dict
 from loguru import logger
+from typing_extensions import dataclass_transform
 
 from .doc_parse import store_field_description
 from .pretty import Prettifier
@@ -37,7 +38,8 @@ def config_stub(
 
 def config_impl(domain: str, **kwargs) -> Callable[[type], type[ConfigModel]]:
     def wrapper(cls: type) -> type[ConfigModel]:
-        from .domain import _store as g_store, insert_domain
+        from .domain import _store as g_store
+        from .domain import insert_domain
 
         cls = cast(type[ConfigModel], dataclass(**kwargs)(cls))
         store_field_description(cls)
@@ -133,24 +135,5 @@ def save(model: Union[T, Type[T]]) -> None:
             json5.dumps(Prettifier().prettify(document)), "utf-8"
         )
     m_store.location.path.with_suffix(".schema.json").write_text(
-        json5.dumps(_store.files[m_store.location.path].schemas), "utf-8"
+        json5.dumps(_store.files[m_store.location.path].get_schema()), "utf-8"
     )
-
-
-def save_all() -> None:
-    """Save every model in kayaku.
-
-    Very useful if you want to sync changes on cleanup.
-    """
-    from . import backend as json5
-    from .domain import _store, file_map
-
-    for path, store in file_map.items():
-        document = json5.loads(path.read_text("utf-8"))
-        for section, classes in store.items():
-            container = document
-            for sect in section:
-                container = container.setdefault(sect, {})
-            for cls in classes:
-                update(container, to_dict(_store.model_storage[cls]))  # TODO
-        path.write_text(json5.dumps(Prettifier().prettify(document)), "utf-8")
