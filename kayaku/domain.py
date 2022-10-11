@@ -99,3 +99,30 @@ def initialize(specs: Dict[str, str]) -> None:
 
 def bootstrap() -> None:
     """Populates json schema and default data for all `ConfigModel` that have registered."""
+    from .backend import dumps, loads
+    from .utils import from_dict
+
+    exceptions = []
+
+    for path, store in _store.files.items():
+        document = loads(path.read_text("utf-8") or "{}")
+        path.with_suffix(".schema.json").write_text(
+            dumps(store.get_schema()), encoding="utf-8"
+        )
+        for mount_dest, domains in store.mount.items():
+            container = document
+            for sect in mount_dest:
+                container = container.get(sect, {})
+            for domain in domains:
+                model_store = _store.models[domain]
+                if model_store.instance is None:
+                    try:
+                        model_store.instance = from_dict(model_store.cls, container)
+                    except Exception as e:
+                        exceptions.append((path, mount_dest, model_store.cls, e))
+    if exceptions:
+        raise ValueError(exceptions)
+
+
+def save_all() -> None:
+    ...

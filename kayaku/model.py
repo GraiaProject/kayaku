@@ -108,7 +108,7 @@ def create(cls: Type[T], flush: bool = False) -> T:
         from . import backend as json5
 
         fmt_path = model_store.location
-        document = json5.loads(fmt_path.path.read_text("utf-8"))
+        document = json5.loads(fmt_path.path.read_text("utf-8") or "{}")
         container = document
         for sect in fmt_path.mount_dest:
             container = container.get(sect, {})
@@ -126,7 +126,7 @@ def save(model: Union[T, Type[T]]) -> None:
     m_store = _store.models[_store.cls_domains[cls]]
     inst = m_store.instance
     if inst is not None:
-        document = json5.loads(m_store.location.path.read_text("utf-8"))
+        document = json5.loads(m_store.location.path.read_text("utf-8") or "{}")
         container = document
         for sect in m_store.location.mount_dest:
             container = container.setdefault(sect, {})
