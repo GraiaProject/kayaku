@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import enum
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from datetime import date, datetime, time
 from typing import Any, TextIO, TypeVar
 
@@ -53,6 +53,10 @@ def from_dict(model: type[T], data: dict[str, Any]) -> T:
             cast=[enum.Enum],
         ),
     )
+
+
+def to_dict() -> dict:
+    ...
 
 
 class KayakuEncoder(Encoder):

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import Field, asdict as to_dict, field
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields as get_fields
+import gc
 from inspect import signature
 from typing import TYPE_CHECKING, Callable, Tuple, Type, TypeVar, Union, cast, overload
 from typing_extensions import dataclass_transform
@@ -36,7 +37,7 @@ def config_stub(
 
 def config_impl(domain: str, **kwargs) -> Callable[[type], type[ConfigModel]]:
     def wrapper(cls: type) -> type[ConfigModel]:
-        from .domain import _store, insert_domain
+        from .domain import _store as g_store, insert_domain
 
         cls = cast(type[ConfigModel], dataclass(**kwargs)(cls))
         store_field_description(cls)
@@ -44,14 +45,36 @@ def config_impl(domain: str, **kwargs) -> Callable[[type], type[ConfigModel]]:
         if not all(domain_tup):
             raise ValueError(f"{domain!r} contains empty segment!")
 
-        if domain_tup in _store.models:
-            store = _store.models[domain_tup]
-            other = store.cls
+        if domain_tup in g_store.models:
+            m_store = g_store.models[domain_tup]
+            other = m_store.cls
             if (
                 cls.__module__ == other.__module__
                 and cls.__qualname__ == other.__qualname__
             ):
-                ...  # TODO: remove original occupations, inject new ones
+                if m_store.instance is not None:
+                    instance = m_store.instance
+                    if len(gc.get_referrers(instance)) > 1:
+                        logger.warning(f"Instance of {other!r} is stilled referred!")
+                    m_store.instance = None
+                f_store = g_store.files[m_store.location.path]
+                # remove original occupations
+
+                g_store.cls_domains.pop(other)
+                other_def_name = f_store.generator.retrieve_name(other)
+                other_schema = f_store.generator.defs.pop(other_def_name)
+                g_store.cls_domains.pop(other)
+                mount_dest = tuple(m_store.location.mount_dest)
+                for field in get_fields(other):
+                    sub_dest = mount_dest + (field.name,)
+                    f_store.field_mount_record.remove(sub_dest)
+
+                # inject new ones
+                insert_domain(domain_tup, cls)
+                cls_def_name = f_store.generator.retrieve_name(cls)
+                cls_schema = f_store.generator.defs[cls_def_name]
+                if cls_schema != other_schema:
+                    logger.warning(f"Schema of {cls} has changed!")
                 return cls
 
             raise NameError(f"{domain!r} is already occupied by {other!r}")
@@ -73,36 +96,45 @@ def create(cls: Type[T], flush: bool = False) -> T:
     """
     from .domain import _store
 
-    if cls not in _store.cls_domains or not isinstance(cls, ConfigModel):
-        raise  # TODO
-    if flush or _store.cls_domains[cls] is None:
+    if not issubclass(cls, ConfigModel):
+        raise TypeError(f"{cls!r} is not a ConfigModel class!")
+    if cls not in _store.cls_domains:
+        raise NameError(f"{cls!r} is not registered ConfigModel!")
+    domain = _store.cls_domains[cls]
+    model_store = _store.models[domain]
+    if flush or model_store.instance is None:
         from . import backend as json5
 
-        fmt_path = _store.location_map[cls]
+        fmt_path = model_store.location
         document = json5.loads(fmt_path.path.read_text("utf-8"))
         container = document
-        for sect in fmt_path.section:
-            container = container[sect]
-        _store.model_storage[cls] = from_dict(cls, container)
+        for sect in fmt_path.mount_dest:
+            container = container.get(sect, {})
+        model_store.instance = from_dict(cls, container)
 
-    return cast(T, _store.model_storage[cls])
+    return cast(T, model_store.instance)
 
 
 def save(model: Union[T, Type[T]]) -> None:
-    """Save a model."""
+    """Save a model. Associated schema will be updated as well."""
     from . import backend as json5
     from .domain import _store
 
-    inst: ConfigModel = (
-        _store.model_storage[model] if isinstance(model, type) else model
+    cls = cast(Type[ConfigModel], model if isinstance(model, type) else model.__class__)
+    m_store = _store.models[_store.cls_domains[cls]]
+    inst = m_store.instance
+    if inst is not None:
+        document = json5.loads(m_store.location.path.read_text("utf-8"))
+        container = document
+        for sect in m_store.location.mount_dest:
+            container = container.setdefault(sect, {})
+        update(container, to_dict(inst))  # TODO: update to_dict impl
+        m_store.location.path.write_text(
+            json5.dumps(Prettifier().prettify(document)), "utf-8"
+        )
+    m_store.location.path.with_suffix(".schema.json").write_text(
+        json5.dumps(_store.files[m_store.location.path].schemas), "utf-8"
     )
-    fmt_path = _store.location_map[inst.__class__]
-    document = json5.loads(fmt_path.path.read_text("utf-8"))
-    container = document
-    for sect in fmt_path.section:
-        container = container.setdefault(sect, {})
-    update(container, to_dict(inst))  # TODO
-    fmt_path.path.write_text(json5.dumps(Prettifier().prettify(document)), "utf-8")
 
 
 def save_all() -> None:

@@ -1,23 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field, fields as get_fields
+from dataclasses import dataclass, field
+from dataclasses import fields as get_fields
 from pathlib import Path
-from typing import Any, Dict, Optional, Set, Tuple, Type, List
+from typing import Dict, List, Optional, Set, Tuple, Type
 
-from dacite.exceptions import DaciteError
-
-from .backend.types import JObject
-from .format import format_with_model
-from .schema_gen import (
-    ConfigModel,
-    SchemaAnnotation,
-    SchemaGenerator,
-    gen_schema_from_list,
-    write_schema_ref,
-)
+from .schema_gen import ConfigModel, SchemaAnnotation, SchemaGenerator, write_schema_ref
 from .spec import FormattedPath, parse_path, parse_source
 from .storage import insert, lookup
-from .utils import KayakuEncoder, from_dict
 
 MountType = Tuple[str, ...]
 DomainType = Tuple[str, ...]
@@ -56,8 +46,6 @@ _store = _GlobalStore()
 
 
 def insert_domain(domain: DomainType, cls: Type[ConfigModel]) -> None:
-    if domain in _store.cls_domains:
-        raise NameError  # TODO
     _store.cls_domains[cls] = domain
     fmt_path: FormattedPath = lookup(list(domain))
     path = fmt_path.path
@@ -88,7 +76,7 @@ def initialize(specs: Dict[str, str]) -> None:
             password: str | None = None
             "password"
 
-        initialize({"{**}.connection": "./config/connection.jsonc:{**}})
+        initialize({"{**}.connection": "./config/connection.jsonc::{**}})
 
     Above will make `Connection` stored in `./config/connection.jsonc`'s `["my_mod"]["config"]` section.
     """

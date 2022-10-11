@@ -117,12 +117,7 @@ class FormattedPath:
 
 def parse_path(spec: str) -> PathSpec:
     replacer = {"{*}": PathFill.SINGLE, "{}": PathFill.SINGLE, "{**}": PathFill.EXTEND}
-    if "/" in spec:
-        _loc_left, _rest = spec.rsplit("/", 1)
-        _loc_right, section = _rest.rsplit(":", 1) if ":" in _rest else (_rest, "")
-        location = f"{_loc_left}/{_loc_right}"
-    else:
-        location, section = spec.rsplit(":", 1) if ":" in spec else (spec, "")
+    location, section = spec.rsplit("::", 1) if "::" in spec else (spec, "")
     path_parts: list[str | PathFill] = [replacer.get(l, l) for l in location.split("/")]
     section_parts: list[str | PathFill] = [
         replacer.get(l, l) for l in section.split(".")
