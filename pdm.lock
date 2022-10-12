@@ -51,6 +51,15 @@ requires_python = ">=3.6"
 summary = "Simple creation of data classes from dictionaries."
 
 [[package]]
+name = "importlib-resources"
+version = "5.10.0"
+requires_python = ">=3.7"
+summary = "Read resources from Python packages"
+dependencies = [
+    "zipp>=3.1.0; python_version < \"3.10\"",
+]
+
+[[package]]
 name = "iniconfig"
 version = "1.1.1"
 summary = "iniconfig: brain-dead simple config-ini parsing"
@@ -68,6 +77,8 @@ requires_python = ">=3.7"
 summary = "An implementation of JSON Schema validation for Python"
 dependencies = [
     "attrs>=17.4.0",
+    "importlib-resources>=1.4.0; python_version < \"3.9\"",
+    "pkgutil-resolve-name>=1.3.10; python_version < \"3.9\"",
     "pyrsistent!=0.17.0,!=0.17.1,!=0.17.2,>=0.14.0",
 ]
 
@@ -115,6 +126,12 @@ name = "pathspec"
 version = "0.10.1"
 requires_python = ">=3.7"
 summary = "Utility library for gitignore style pattern matching of file paths."
+
+[[package]]
+name = "pkgutil-resolve-name"
+version = "1.3.10"
+requires_python = ">=3.6"
+summary = "Resolve a name to an object."
 
 [[package]]
 name = "platformdirs"
@@ -181,6 +198,7 @@ summary = "Render rich text, tables, progress bars, syntax highlighting, markdow
 dependencies = [
     "commonmark<0.10.0,>=0.9.0",
     "pygments<3.0.0,>=2.6.0",
+    "typing-extensions<5.0,>=4.0.0; python_version < \"3.9\"",
 ]
 
 [[package]]
@@ -201,9 +219,15 @@ version = "1.1.0"
 requires_python = ">=3.5"
 summary = "A small Python utility to set file creation time on Windows"
 
+[[package]]
+name = "zipp"
+version = "3.9.0"
+requires_python = ">=3.7"
+summary = "Backport of pathlib-compatible object wrapper for zip files"
+
 [metadata]
 lock_version = "4.0"
-content_hash = "sha256:9bf9ac3a808cd8984fe4b002ecbc6c6e9a7890f7c03594aa5ee88bdae7198e4e"
+content_hash = "sha256:ead9efd56ff59c5c0e953cbbb6a50982724e2388c8c0370b9d539d93afa39c94"
 
 [metadata.files]
 "attrs 22.1.0" = [
@@ -303,6 +327,10 @@ content_hash = "sha256:9bf9ac3a808cd8984fe4b002ecbc6c6e9a7890f7c03594aa5ee88bdae
     {url = "https://pypi.tuna.tsinghua.edu.cn/packages/06/9d/11a073172d889e9e0d0ad270a1b468876c82d759af7864a8095dfc73f46d/dacite-1.6.0-py3-none-any.whl", hash = "sha256:4331535f7aabb505c732fa4c3c094313fc0a1d5ea19907bf4726a7819a68b93f"},
     {url = "https://pypi.tuna.tsinghua.edu.cn/packages/f9/bf/3f0912b4cfd861cd0fb7278c2b8d5bfb0c613ec1b7922e25e4115287b73a/dacite-1.6.0.tar.gz", hash = "sha256:d48125ed0a0352d3de9f493bf980038088f45f3f9d7498f090b50a847daaa6df"},
 ]
+"importlib-resources 5.10.0" = [
+    {url = "https://pypi.tuna.tsinghua.edu.cn/packages/06/72/6bf0df4fe7a139147f5d6b473f16d5aefb7bc5b719ba5dd33f230d35760f/importlib_resources-5.10.0.tar.gz", hash = "sha256:c01b1b94210d9849f286b86bb51bcea7cd56dde0600d8db721d7b81330711668"},
+    {url = "https://pypi.tuna.tsinghua.edu.cn/packages/c8/47/6bfe2147eae436391916b3741a2cd9a76763e9671703a0d1d8e83142816e/importlib_resources-5.10.0-py3-none-any.whl", hash = "sha256:ee17ec648f85480d523596ce49eae8ead87d5631ae1551f913c0100b5edd3437"},
+]
 "iniconfig 1.1.1" = [
     {url = "https://pypi.tuna.tsinghua.edu.cn/packages/23/a2/97899f6bd0e873fed3a7e67ae8d3a08b21799430fb4da15cfedf10d6e2c2/iniconfig-1.1.1.tar.gz", hash = "sha256:bc3af051d7d14b2ee5ef9969666def0cd1a000e121eaea580d4a313df4b37f32"},
     {url = "https://pypi.tuna.tsinghua.edu.cn/packages/9b/dd/b3c12c6d707058fa947864b67f0c4e0c39ef8610988d7baea9578f3c48f3/iniconfig-1.1.1-py2.py3-none-any.whl", hash = "sha256:011e24c64b7f47f6ebd835bb12a743f2fbe9a26d4cecaa7f53bc4f35ee9da8b3"},
@@ -334,6 +362,10 @@ content_hash = "sha256:9bf9ac3a808cd8984fe4b002ecbc6c6e9a7890f7c03594aa5ee88bdae
 "pathspec 0.10.1" = [
     {url = "https://pypi.tuna.tsinghua.edu.cn/packages/24/9f/a9ae1e6efa11992dba2c4727d94602bd2f6ee5f0dedc29ee2d5d572c20f7/pathspec-0.10.1.tar.gz", hash = "sha256:7ace6161b621d31e7902eb6b5ae148d12cfd23f4a249b9ffb6b9fee12084323d"},
     {url = "https://pypi.tuna.tsinghua.edu.cn/packages/63/82/2179fdc39bc1bb43296f638ae1dfe2581ec2617b4e87c28b0d23d44b997f/pathspec-0.10.1-py3-none-any.whl", hash = "sha256:46846318467efc4556ccfd27816e004270a9eeeeb4d062ce5e6fc7a87c573f93"},
+]
+"pkgutil-resolve-name 1.3.10" = [
+    {url = "https://pypi.tuna.tsinghua.edu.cn/packages/70/f2/f2891a9dc37398696ddd945012b90ef8d0a034f0012e3f83c3f7a70b0f79/pkgutil_resolve_name-1.3.10.tar.gz", hash = "sha256:357d6c9e6a755653cfd78893817c0853af365dd51ec97f3d358a819373bbd174"},
+    {url = "https://pypi.tuna.tsinghua.edu.cn/packages/c9/5c/3d4882ba113fd55bdba9326c1e4c62a15e674a2501de4869e6bd6301f87e/pkgutil_resolve_name-1.3.10-py3-none-any.whl", hash = "sha256:ca27cc078d25c5ad71a9de0a7a330146c4e014c2462d9af19c6b828280649c5e"},
 ]
 "platformdirs 2.5.2" = [
     {url = "https://pypi.tuna.tsinghua.edu.cn/packages/ed/22/967181c94c3a4063fe64e15331b4cb366bdd7dfbf46fcb8ad89650026fec/platformdirs-2.5.2-py3-none-any.whl", hash = "sha256:027d8e83a2d7de06bbac4e5ef7e023c02b863d7ea5d079477e722bb41ab25788"},
@@ -487,4 +519,8 @@ content_hash = "sha256:9bf9ac3a808cd8984fe4b002ecbc6c6e9a7890f7c03594aa5ee88bdae
 "win32-setctime 1.1.0" = [
     {url = "https://pypi.tuna.tsinghua.edu.cn/packages/0a/e6/a7d828fef907843b2a5773ebff47fb79ac0c1c88d60c0ca9530ee941e248/win32_setctime-1.1.0-py3-none-any.whl", hash = "sha256:231db239e959c2fe7eb1d7dc129f11172354f98361c4fa2d6d2d7e278baa8aad"},
     {url = "https://pypi.tuna.tsinghua.edu.cn/packages/6b/dd/f95a13d2b235a28d613ba23ebad55191514550debb968b46aab99f2e3a30/win32_setctime-1.1.0.tar.gz", hash = "sha256:15cf5750465118d6929ae4de4eb46e8edae9a5634350c01ba582df868e932cb2"},
+]
+"zipp 3.9.0" = [
+    {url = "https://pypi.tuna.tsinghua.edu.cn/packages/09/85/302c153615db93e9197f13e02f448b3f95d7d786948f2fb3d6d5830a481b/zipp-3.9.0-py3-none-any.whl", hash = "sha256:972cfa31bc2fedd3fa838a51e9bc7e64b7fb725a8c00e7431554311f180e9980"},
+    {url = "https://pypi.tuna.tsinghua.edu.cn/packages/41/2e/1341c5634c25e7254df01ec1f6cbd2bcdee3e647709e7c3647d1b362e3ac/zipp-3.9.0.tar.gz", hash = "sha256:3a7af91c3db40ec72dd9d154ae18e008c69efe8ca88dde4f9a731bb82fe2f9eb"},
 ]

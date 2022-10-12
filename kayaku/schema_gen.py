@@ -165,7 +165,7 @@ class SchemaGenerator:
             "properties": {},
             "required": [],
         }
-        type_hints = t.get_type_hints(dc, include_extras=True)
+        type_hints = t_e.get_type_hints(dc, include_extras=True)
         for field in dataclasses.fields(dc):
             type_ = type_hints[field.name]
             schema["properties"][field.name] = self.get_field_schema(
@@ -185,11 +185,11 @@ class SchemaGenerator:
     ):
         if dataclasses.is_dataclass(typ):
             return self.get_dc_schema(typ, annotation)
-        elif t.get_origin(typ) == t.Union:
+        elif t_e.get_origin(typ) == t.Union:
             return self.get_union_schema(typ, default, annotation)
-        elif t.get_origin(typ) == t.Literal:
+        elif t_e.get_origin(typ) == t.Literal:
             return self.get_literal_schema(typ, default, annotation)
-        elif t.get_origin(typ) == t.Annotated:
+        elif t_e.get_origin(typ) == t_e.Annotated:
             return self.get_annotated_schema(typ, default)
         elif typ == t.Any:
             return self.get_any_schema(default, annotation)
@@ -235,7 +235,7 @@ class SchemaGenerator:
     def get_union_schema(
         self, typ: t.Type, default: t.Any, annotation: SchemaAnnotation
     ):
-        args = t.get_args(typ)
+        args = t_e.get_args(typ)
         if default is _MISSING:
             return {
                 "anyOf": [
@@ -259,11 +259,11 @@ class SchemaGenerator:
             schema = {**annotation.schema()}
         else:
             schema = {"default": default, **annotation.schema()}
-        args = t.get_args(type_)
+        args = t_e.get_args(type_)
         return {"enum": list(args), **schema}
 
     def get_dict_schema(self, type_, annotation: SchemaAnnotation):
-        args = t.get_args(type_)
+        args = t_e.get_args(type_)
         assert len(args) in {0, 2}
         if args:
             assert args[0] == str
@@ -278,7 +278,7 @@ class SchemaGenerator:
             return {"type": "object", **annotation.schema()}
 
     def get_list_schema(self, type_, annotation: SchemaAnnotation):
-        args = t.get_args(type_)
+        args = t_e.get_args(type_)
         assert len(args) in {0, 1}
         if args:
             return {
@@ -294,7 +294,7 @@ class SchemaGenerator:
             schema = {**annotation.schema()}
         else:
             schema = {"default": list(default), **annotation.schema()}
-        args = t.get_args(type_)
+        args = t_e.get_args(type_)
         if args and len(args) == 2 and args[1] is ...:
             schema = {
                 "type": "array",
@@ -317,7 +317,7 @@ class SchemaGenerator:
         return schema
 
     def get_set_schema(self, type_, annotation: SchemaAnnotation):
-        args = t.get_args(type_)
+        args = t_e.get_args(type_)
         assert len(args) in {0, 1}
         if args:
             return {
@@ -383,7 +383,7 @@ class SchemaGenerator:
             }
 
     def get_annotated_schema(self, type_, default):
-        args = t.get_args(type_)
+        args = t_e.get_args(type_)
         assert len(args) == 2
         return self.get_field_schema(args[0], default, args[1])
 

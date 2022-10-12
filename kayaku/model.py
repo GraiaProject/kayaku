@@ -34,12 +34,12 @@ def config_stub(
     ...
 
 
-def config_impl(domain: str, **kwargs) -> Callable[[type], type[ConfigModel]]:
+def config_impl(domain: str, **kwargs) -> Callable[[type], Type[ConfigModel]]:
     def wrapper(cls: type) -> type[ConfigModel]:
         from .domain import _store as g_store
         from .domain import insert_domain
 
-        cls = cast(type[ConfigModel], dataclass(**kwargs)(cls))
+        cls = cast(Type[ConfigModel], dataclass(**kwargs)(cls))
         store_field_description(cls)
         domain_tup: Tuple[str, ...] = tuple(domain.split("."))
         if not all(domain_tup):

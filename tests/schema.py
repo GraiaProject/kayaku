@@ -35,11 +35,12 @@ import re
 import typing as t
 
 import pytest
+import typing_extensions as t_e
 from jsonschema.validators import Draft202012Validator
 
 from kayaku.schema_gen import ConfigModel, SchemaAnnotation, SchemaGenerator
 
-
+# TODO: Support description in field metadata
 def get_schema(obj: type[ConfigModel]):
     class NameOnlyGen(SchemaGenerator):
         def retrieve_name(self, typ: t.Type) -> str:
@@ -83,7 +84,7 @@ class DcOptional:
     e: bool = False
     f: None = None
     g: float = 1.1
-    h: tuple[int, float] = (1, 1.1)
+    h: t.Tuple[int, float] = (1, 1.1)
 
 
 def test_get_schema_optional_fields():
@@ -159,7 +160,7 @@ def test_get_schema_nullable():
 @dataclasses.dataclass
 class DcDict:
     a: dict
-    b: dict[str, int]
+    b: t.Dict[str, int]
 
 
 def test_get_schema_dict():
@@ -181,7 +182,7 @@ def test_get_schema_dict():
 @dataclasses.dataclass
 class DcList:
     a: list
-    b: list[bool]
+    b: t.List[bool]
 
 
 def test_get_schema_list():
@@ -203,8 +204,8 @@ def test_get_schema_list():
 @dataclasses.dataclass
 class DcTuple:
     a: tuple
-    b: tuple[int, ...]
-    c: tuple[int, bool, str]
+    b: t.Tuple[int, ...]
+    c: t.Tuple[int, bool, str]
 
 
 def test_get_schema_tuple():
@@ -241,7 +242,7 @@ class DcRefsChild:
 @dataclasses.dataclass
 class DcRefs:
     a: DcRefsChild
-    b: list[DcRefsChild]
+    b: t.List[DcRefsChild]
 
 
 def test_get_schema_refs():
@@ -275,7 +276,7 @@ def test_get_schema_refs():
 class DcRefsSelf:
     a: str
     b: t.Optional[DcRefsSelf]
-    c: list[DcRefsSelf]
+    c: t.List[DcRefsSelf]
 
 
 def test_get_schema_self_refs():
@@ -320,7 +321,7 @@ def test_get_schema_literal():
 class DcAny:
     a: t.Any
     x: t.Union[int, t.Any] = 4
-    b: t.Annotated[t.Any, SchemaAnnotation("B!!!")] = 5
+    b: t_e.Annotated[t.Any, SchemaAnnotation("B!!!")] = 5
 
 
 def test_get_schema_any():
@@ -370,7 +371,7 @@ def test_get_schema_enum():
 @dataclasses.dataclass
 class DcSet:
     a: set
-    b: set[int]
+    b: t.Set[int]
 
 
 def test_get_schema_set():
@@ -391,8 +392,8 @@ def test_get_schema_set():
 
 @dataclasses.dataclass
 class DcStrAnnotated:
-    a: t.Annotated[str, SchemaAnnotation(min_length=3, max_length=5)]
-    b: t.Annotated[
+    a: t_e.Annotated[str, SchemaAnnotation(min_length=3, max_length=5)]
+    b: t_e.Annotated[
         str, SchemaAnnotation(format="date", pattern=r"^\d.*")
     ] = "2000-01-01"
 
@@ -420,10 +421,10 @@ def test_get_schema_str_annotation():
 
 @dataclasses.dataclass
 class DcNumberAnnotated:
-    a: t.Annotated[int, SchemaAnnotation(minimum=1, exclusive_maximum=11)]
-    b: list[t.Annotated[int, SchemaAnnotation(minimum=0)]]
-    c: t.Optional[t.Annotated[int, SchemaAnnotation(minimum=0)]]
-    d: t.Annotated[
+    a: t_e.Annotated[int, SchemaAnnotation(minimum=1, exclusive_maximum=11)]
+    b: t.List[t_e.Annotated[int, SchemaAnnotation(minimum=0)]]
+    c: t.Optional[t_e.Annotated[int, SchemaAnnotation(minimum=0)]]
+    d: t_e.Annotated[
         float, SchemaAnnotation(maximum=12, exclusive_minimum=17, multiple_of=5)
     ] = 33.1
 
@@ -521,7 +522,7 @@ def test_get_schema_regex():
 
 @dataclasses.dataclass
 class DcAnnotatedBook:
-    title: t.Annotated[str, SchemaAnnotation(title="Title")]
+    title: t_e.Annotated[str, SchemaAnnotation(title="Title")]
 
 
 class DcAnnotatedAuthorHobby(enum.Enum):
@@ -531,18 +532,18 @@ class DcAnnotatedAuthorHobby(enum.Enum):
 
 @dataclasses.dataclass
 class DcAnnotatedAuthor:
-    name: t.Annotated[
+    name: t_e.Annotated[
         str,
         SchemaAnnotation(
             description="the name of the author", examples=["paul", "alice"]
         ),
     ]
-    books: t.Annotated[
-        list[DcAnnotatedBook],
+    books: t_e.Annotated[
+        t.List[DcAnnotatedBook],
         SchemaAnnotation(description="all the books the author has written"),
     ]
-    hobby: t.Annotated[DcAnnotatedAuthorHobby, SchemaAnnotation(deprecated=True)]
-    age: t.Annotated[
+    hobby: t_e.Annotated[DcAnnotatedAuthorHobby, SchemaAnnotation(deprecated=True)]
+    age: t_e.Annotated[
         t.Union[int, float], SchemaAnnotation(description="age in years")
     ] = 42
 
@@ -610,8 +611,8 @@ class DcSchemaConfigChild:
 class DcSchemaConfig:
     a: str
     child_1: DcSchemaConfigChild
-    child_2: t.Annotated[DcSchemaConfigChild, SchemaAnnotation(title="2nd child")]
-    friend: t.Annotated[DcSchemaConfig, SchemaAnnotation(title="a friend")]
+    child_2: t_e.Annotated[DcSchemaConfigChild, SchemaAnnotation(title="2nd child")]
+    friend: t_e.Annotated[DcSchemaConfig, SchemaAnnotation(title="a friend")]
 
 
 def test_get_schema_config():
@@ -645,10 +646,12 @@ def test_get_schema_config():
 
 @dataclasses.dataclass
 class DcListAnnotation:
-    a: t.Annotated[
-        list[int], SchemaAnnotation(min_items=3, max_items=5, unique_items=True)
+    a: t_e.Annotated[
+        t.List[int], SchemaAnnotation(min_items=3, max_items=5, unique_items=True)
     ]
-    b: t.Annotated[tuple[float, ...], SchemaAnnotation(min_items=3, max_items=10)] = ()
+    b: t_e.Annotated[
+        t.Tuple[float, ...], SchemaAnnotation(min_items=3, max_items=10)
+    ] = ()
 
 
 def test_get_schema_list_annotation():
