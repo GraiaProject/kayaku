@@ -228,7 +228,7 @@ class JWrapper(JType, Generic[T]):
         self.value = value
 
     def __eq__(self, obj: object) -> bool:
-        return self.value.__eq__(obj)
+        return self.value.__eq__(obj.value if isinstance(obj, JWrapper) else obj)
 
     def __hash__(self) -> int:
         return self.value.__hash__()

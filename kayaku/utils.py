@@ -4,14 +4,14 @@ import enum
 import re
 from dataclasses import fields
 from datetime import date, datetime, time
-from typing import Any, TypeVar, Union
+from typing import Any, Sequence, TypeVar, Union
 
 import typing_extensions
 from dacite.config import Config
 from dacite.core import from_dict as _from_dict
 from typing_extensions import TypeAlias
 
-from .backend.types import JContainer, JObject, JType, JWrapper, convert
+from .backend.types import Array, JContainer, JObject, JType, JWrapper, convert
 from .schema_gen import ConfigModel
 
 DomainType: TypeAlias = "tuple[str, ...]"
@@ -21,16 +21,40 @@ T = TypeVar("T", bound=ConfigModel)
 
 def copy_meta(src: Any, dst: JType):
     if isinstance(dst, JContainer):
-        dst.json_container_trailing_comma = getattr(
-            src, "json_container_trailing_comma", False
+        dst.json_container_tail = getattr(
+            src, "json_container_tail", dst.json_container_tail
         )
-        dst.json_container_tail = getattr(src, "json_container_tail", [])
-    dst.json_before = getattr(src, "json_before", [])
-    dst.json_after = getattr(src, "json_after", [])
+    dst.json_before = getattr(src, "json_before", dst.json_before)
+    dst.json_after = getattr(src, "json_after", dst.json_after)
 
 
-def update(container: dict[str, Any], data: ConfigModel | dict, delete: bool = False):
-    container = convert(container)
+def _update_array(container: Array, data: list):
+    for i in range(len(container)):
+        val = container[i]
+        if isinstance(val, (ConfigModel, dict)):
+            new_container = JObject()
+            update(new_container, val, delete=True)
+            val = new_container
+        elif isinstance(val, (re.Pattern, date, datetime, time)):
+            val = convert(
+                val.pattern if isinstance(val, re.Pattern) else val.isoformat()
+            )
+        elif isinstance(val, enum.Enum):
+            val = convert(val.value)
+        elif isinstance(val, Sequence) and not isinstance(val, str):
+            val: JType = convert(val if isinstance(val, list) else list(val))
+            _update_array(val, [])
+        else:
+            val = convert(val)
+
+        if i < len(data) and isinstance(data[i], JType):
+            copy_meta(data[i], val)
+        container[i] = val
+    if len(container) < len(data):
+        container.json_container_trailing_comma = True
+
+
+def update(container: JObject, data: ConfigModel | dict, delete: bool = False):
     if isinstance(data, ConfigModel):
         k_v_pairs = {f.name: getattr(data, f.name) for f in fields(data)}
     else:
@@ -40,21 +64,23 @@ def update(container: dict[str, Any], data: ConfigModel | dict, delete: bool = F
         to_be_popped.discard(k)
         origin_v = container.get(k, None)
         if isinstance(v, (ConfigModel, dict)):
-            if origin_v is not None and not isinstance(origin_v, dict):
-                container[k] = new_v = JObject()
-                copy_meta(origin_v, new_v)
-            update(container.setdefault(k, {}), v, delete=True)
-            continue
-        if isinstance(v, (re.Pattern, date, datetime, time)):
+            new_v = container.setdefault(k, JObject())
+            update(new_v, v, delete=True)
+            v = new_v
+        elif isinstance(v, (re.Pattern, date, datetime, time)):
             v = convert(v.pattern if isinstance(v, re.Pattern) else v.isoformat())
+        elif isinstance(v, enum.Enum):
+            v = convert(v.value)
+        elif isinstance(v, Sequence) and not isinstance(v, str):
+            v: JType = convert(v if isinstance(v, list) else list(v))
+            _update_array(v, origin_v or [])
         else:
-            v = convert(v)
+            v: JType = convert(v)
         if origin_v is not None:
             copy_meta(origin_v, v)
         container[k] = v
     for k in to_be_popped:
-        container.pop(k, Any)
-    # TODO: Sequence
+        container.pop(k, None)
 
 
 class _KayakuDaciteTypeHook(dict):
@@ -90,16 +116,24 @@ class _KayakuDaciteTypeHook(dict):
 
     def __contains__(self, o: object) -> bool:
         if typing_extensions.get_origin(o) == Union:
-            for arg in typing_extensions.get_args(o):
-                if arg in self:
-                    return True
+            return any(
+                dict.__contains__(self, arg) for arg in typing_extensions.get_args(o)
+            )
         return super().__contains__(o)
 
     def __getitem__(self, k: Any) -> Any:
         if typing_extensions.get_origin(k) == Union:
-            for arg in typing_extensions.get_args(k):
-                if super().__contains__(arg):
-                    return self[arg]
+
+            def applier(arg):
+                for func in [
+                    self[arg]
+                    for arg in typing_extensions.get_args(k)
+                    if dict.__contains__(self, arg)
+                ]:
+                    arg = func(arg)
+                return arg
+
+            return applier
         return super().__getitem__(k)
 
 
