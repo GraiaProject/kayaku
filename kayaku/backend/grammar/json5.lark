@@ -21,7 +21,7 @@ HEXNUMBER: "0" ("x"|"X") HEX
 
 SIGNED_HEXNUMBER.2: (["+"|"-"] HEXNUMBER)
 
-number: SIGNED_HEXNUMBER | SIGNED_NUMBER 
+number: SIGNED_HEXNUMBER | SIGNED_NUMBER
 
 SIGNED_NUMBER: DECIMAL_FLOAT | "+Infinity" | "Infinity" | "-Infinity" | "+NaN" | "NaN" | "-NaN"
 

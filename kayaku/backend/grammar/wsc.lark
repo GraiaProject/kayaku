@@ -10,5 +10,3 @@ WSC: WS | COMMENT
 %import common.CPP_COMMENT
 %import common.C_COMMENT
 %import common.SH_COMMENT
-
-

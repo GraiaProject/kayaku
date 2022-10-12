@@ -55,18 +55,25 @@ def load(file: TextIO | Path) -> str:
     return loads(data)
 
 
-def dumps(obj: Any, encoder_cls: type[Encoder] = Encoder) -> str:
+def dumps(obj: Any, encoder_cls: type[Encoder] = Encoder, endline: bool = False) -> str:
     """
     Serialize JSON to a string
     """
     fp = io.StringIO()
-    encoder_cls(fp).encode(obj)
+    dump(obj, fp, encoder_cls, endline)
     return fp.getvalue()
 
 
-def dump(obj: Any, out: TextIO | Path, encoder_cls: type[Encoder] = Encoder):
+def dump(
+    obj: Any,
+    out: TextIO | Path,
+    encoder_cls: type[Encoder] = Encoder,
+    endline: bool = False,
+) -> None:
     """
     Serialize JSON to a file-like object
     """
     out = out.open("w") if isinstance(out, Path) else out
     encoder_cls(out).encode(obj)
+    if endline:
+        out.write("\n")

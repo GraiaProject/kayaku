@@ -61,6 +61,7 @@ def update(container: JObject, data: ConfigModel | dict, delete: bool = False):
         k_v_pairs = data
     to_be_popped: set[str] = set(container.keys() if delete else ())
     for k, v in k_v_pairs.items():
+        k = convert(k)
         to_be_popped.discard(k)
         origin_v = container.get(k, None)
         if isinstance(v, (ConfigModel, dict)):

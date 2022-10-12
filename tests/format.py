@@ -45,7 +45,7 @@ def test_format_model():
     /*
     * B
     * Annotation: B
-    * 
+    *
     * @type: Dict[str, str]
     */
 }
@@ -59,26 +59,26 @@ def test_format_model():
         {
             /*
             * Annotation: A
-            * 
+            *
             * @type: int
             */
             "a": 3,
             "d": 5,
             /*
             * Fantasy C
-            * 
+            *
             * @type: List[str]
             */
             /*
             * B
             * Annotation: B
-            * 
+            *
             * @type: Dict[str, str]
             */
             "c": ["123"],
             /*
             * Any E
-            * 
+            *
             * @type: Any
             */
             "e": null,

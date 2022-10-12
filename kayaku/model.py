@@ -94,6 +94,7 @@ def create(cls: Type[T], flush: bool = False) -> T:
 
     Note: It's *highly* recommended that you `create` a model every time (for safe reload).
     """
+    from .backend.types import JObject
     from .domain import _store
 
     if not issubclass(cls, ConfigModel):
@@ -109,7 +110,7 @@ def create(cls: Type[T], flush: bool = False) -> T:
         document = json5.loads(fmt_path.path.read_text("utf-8") or "{}")
         container = document
         for sect in fmt_path.mount_dest:
-            container = container.get(sect, {})
+            container = container.setdefault(sect, JObject())
         model_store.instance = from_dict(cls, container)
 
     return cast(T, model_store.instance)
@@ -117,21 +118,24 @@ def create(cls: Type[T], flush: bool = False) -> T:
 
 def save(model: Union[T, Type[T]]) -> None:
     """Save a model. Associated schema will be updated as well."""
-    from . import backend as json5
+    from .backend import dumps, loads
+    from .backend.types import JObject
     from .domain import _store
 
     cls = cast(Type[ConfigModel], model if isinstance(model, type) else model.__class__)
     m_store = _store.models[_store.cls_domains[cls]]
     inst = m_store.instance
     if inst is not None:
-        document = json5.loads(m_store.location.path.read_text("utf-8") or "{}")
+        document = loads(m_store.location.path.read_text("utf-8") or "{}")
         container = document
         for sect in m_store.location.mount_dest:
-            container = container.setdefault(sect, {})
+            container = container.setdefault(sect, JObject())
         update(container, inst)
+        document.pop("$schema", None)
+        document["$schema"] = m_store.location.path.with_suffix(".schema.json").as_uri()
         m_store.location.path.write_text(
-            json5.dumps(Prettifier().prettify(document)), "utf-8"
+            dumps(Prettifier().prettify(document), endline=True), "utf-8"
         )
     m_store.location.path.with_suffix(".schema.json").write_text(
-        json5.dumps(_store.files[m_store.location.path].get_schema()), "utf-8"
+        dumps(_store.files[m_store.location.path].get_schema()), "utf-8"
     )

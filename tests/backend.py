@@ -11,7 +11,7 @@ test_input = """\
     "base":{
         /*
         * More annotations
-        * 
+        *
         * @type: int
         */
         "account": 0,
@@ -28,7 +28,7 @@ lll\\
         /*
         * Test annotating
         * What about double line
-        * 
+        *
         * @type: Optional[P]
         */
         "p": null,

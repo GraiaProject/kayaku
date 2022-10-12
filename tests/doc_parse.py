@@ -10,7 +10,10 @@ def test_extract_attr_docs():
         b: int = field(default=6)
         """b document"""
         c: int = 7
-        "c document"
+        """long
+        long
+        c document
+        """
 
     store_field_description(M)
     assert {
@@ -18,5 +21,5 @@ def test_extract_attr_docs():
     } == {
         "a": None,
         "b": "b document",
-        "c": "c document",
+        "c": "long\nlong\nc document",
     }

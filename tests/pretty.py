@@ -102,6 +102,7 @@ def test_pretty_comment():
             /*
             More annotations
             
+
             @type: int
             */
             "account": 0
@@ -139,7 +140,8 @@ def test_pretty_comment():
             "ariadne": {
                 /*
                 * More annotations
-                * 
+                *
+                *
                 * @type: int
                 */
                 "account": 0
@@ -153,7 +155,7 @@ def test_pretty_comment():
                 /*
                 * Test annotating
                 * What about double line
-                * 
+                *
                 * @type: Optional[P]
                 */
                 "p": null

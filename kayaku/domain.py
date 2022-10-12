@@ -5,6 +5,8 @@ from dataclasses import fields as get_fields
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Type
 
+from kayaku.backend.types import JObject
+
 from .format import format_with_model
 from .schema_gen import ConfigModel, SchemaAnnotation, SchemaGenerator, write_schema_ref
 from .spec import FormattedPath, parse_path, parse_source
@@ -13,9 +15,6 @@ from .utils import update
 
 MountType = Tuple[str, ...]
 DomainType = Tuple[str, ...]
-
-domain_map: dict[DomainType, type[ConfigModel]] = {}
-file_map: dict[Path, dict[DomainType, list[type[ConfigModel]]]] = {}
 
 
 @dataclass
@@ -57,10 +56,11 @@ def insert_domain(domain: DomainType, cls: Type[ConfigModel]) -> None:
     mount_dest = tuple(fmt_path.mount_dest)
     file_store = _store.files.setdefault(path, _FileStore())
     for field in get_fields(cls):
-        sub_dest = mount_dest + (field.name,)
+        sub_dest: MountType = mount_dest + (field.name,)
         if sub_dest in file_store.field_mount_record:
-            raise NameError(f"{path.as_posix()}::{'.'.join(mount_dest)} is occupied!")
+            raise NameError(f"{path.as_posix()}::{'.'.join(sub_dest)} is occupied!")
         file_store.field_mount_record.add(sub_dest)
+    file_store.mount.setdefault(mount_dest, []).append(domain)
     _store.models[domain] = _ModelStore(cls, fmt_path, None)
     file_store.generator.get_dc_schema(cls, SchemaAnnotation())
     write_schema_ref(
@@ -114,7 +114,7 @@ def bootstrap() -> None:
         for mount_dest, domains in store.mount.items():
             container = document
             for sect in mount_dest:
-                container = container.get(sect, {})
+                container = container.setdefault(sect, JObject())
             for domain in domains:
                 model_store = _store.models[domain]
                 if model_store.instance is None:
@@ -134,8 +134,6 @@ def save_all() -> None:
     from .backend import dumps, loads
     from .pretty import Prettifier
 
-    exceptions = []
-
     for path, store in _store.files.items():
         document = loads(path.read_text("utf-8") or "{}")
         path.with_suffix(".schema.json").write_text(
@@ -144,12 +142,14 @@ def save_all() -> None:
         for mount_dest, domains in store.mount.items():
             container = document
             for sect in mount_dest:
-                container = container.get(sect, {})
+                container = container.setdefault(sect, JObject())
             for domain in domains:
                 model_store = _store.models[domain]
                 if model_store.instance is not None:
                     update(container, model_store.instance)
                 format_with_model(container, model_store.cls)
-            path.write_text(dumps(Prettifier().prettify(document)), "utf-8")
-    if exceptions:
-        raise ValueError(exceptions)
+            document.pop("$schema", None)
+            document["$schema"] = path.with_suffix(".schema.json").as_uri()
+            path.write_text(
+                dumps(Prettifier().prettify(document), endline=True), "utf-8"
+            )

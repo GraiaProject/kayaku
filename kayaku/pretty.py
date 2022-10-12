@@ -89,7 +89,10 @@ class Prettifier:
         lines = self.clean_comment(lines)
         indentation: str = " " * self.layer * self.indent
         return BlockStyleComment(
-            "".join(f"\n{indentation}* {i}" for i in lines) + f"\n{indentation}"
+            "".join(
+                f"\n{indentation}* {i}" if i else f"\n{indentation}*" for i in lines
+            )
+            + f"\n{indentation}"
         )
 
     def format_container(self, new_obj: T_Container, obj: T_Container) -> T_Container:
