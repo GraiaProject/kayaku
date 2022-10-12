@@ -101,7 +101,7 @@ def test_pretty_comment():
         "ariadne":{
             /*
             More annotations
-            
+
 
             @type: int
             */

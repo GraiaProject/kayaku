@@ -2,8 +2,9 @@
 
 > Power within little particles.
 
-An powerful and flexible configuration solution.
+A powerful and flexible configuration solution.
 
+[![codecov](https://codecov.io/gh/GraiaProject/kayaku/branch/master/graph/badge.svg?token=N02KA74USQ)](https://codecov.io/gh/GraiaProject/kayaku)
 
 ## License
 

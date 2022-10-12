@@ -40,6 +40,7 @@ from jsonschema.validators import Draft202012Validator
 
 from kayaku.schema_gen import ConfigModel, SchemaAnnotation, SchemaGenerator
 
+
 # TODO: Support description in field metadata
 def get_schema(obj: type[ConfigModel]):
     class NameOnlyGen(SchemaGenerator):
