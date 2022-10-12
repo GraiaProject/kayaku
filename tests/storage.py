@@ -102,12 +102,12 @@ def test_spec_lookup_fmt_err():
     kayaku.storage._root.set(root)
     kayaku.storage.insert(
         parse_source("a.b.c.{**}"),
-        parse_path("a/b/c:{}"),
+        parse_path("a/b/c::{}"),
     )
 
     kayaku.storage.insert(
         parse_source("a.b.{**}"),
-        parse_path("d/e/f:{**}"),
+        parse_path("d/e/f::{**}"),
     )
 
     assert (p := root.lookup(["a", "b", "c", "d", "e"])) and p[1] == FormattedPath(
@@ -123,14 +123,14 @@ def test_spec_lookup_wrapped():
     kayaku.storage._root.set(root)
     kayaku.storage.insert(
         parse_source("a.b.c.{**}"),
-        parse_path("a/b/c:{}"),
+        parse_path("a/b/c::{}"),
     )
     with pytest.raises(ValueError):
         kayaku.storage.lookup(["a", "b", "c", "d", "e"])
 
     kayaku.storage.insert(
         parse_source("a.b.{**}"),
-        parse_path("d/e/f:{**}"),
+        parse_path("d/e/f::{**}"),
     )
 
     assert kayaku.storage.lookup(["a", "b", "c", "d", "e"]) == FormattedPath(

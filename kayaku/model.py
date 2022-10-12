@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import gc
-from dataclasses import Field
-from dataclasses import asdict as to_dict
-from dataclasses import dataclass, field
+from dataclasses import Field, dataclass, field
 from dataclasses import fields as get_fields
 from typing import TYPE_CHECKING, Callable, Tuple, Type, TypeVar, Union, cast
 
@@ -130,7 +128,7 @@ def save(model: Union[T, Type[T]]) -> None:
         container = document
         for sect in m_store.location.mount_dest:
             container = container.setdefault(sect, {})
-        update(container, to_dict(inst))  # TODO: update to_dict impl
+        update(container, inst)
         m_store.location.path.write_text(
             json5.dumps(Prettifier().prettify(document)), "utf-8"
         )

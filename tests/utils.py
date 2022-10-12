@@ -3,12 +3,13 @@ from copy import deepcopy
 from dataclasses import dataclass
 from datetime import date, datetime, time
 from enum import Enum
+from typing import Union
 
 from kayaku.backend import dumps, loads
-from kayaku.backend.types import JObject
+from kayaku.backend.types import JObject, JWrapper
 from kayaku.pretty import Prettifier
 from kayaku.schema_gen import gen_schema_from_list
-from kayaku.utils import KayakuEncoder, from_dict, update
+from kayaku.utils import from_dict, update
 
 update_input = """\
 {
@@ -92,41 +93,6 @@ class E(Enum):
 
 
 def test_extra_load():
-    ...
-
-
-def test_extra_dump():
-    from kayaku.backend import dumps
-    from kayaku.pretty import Prettifier
-
-    dt_now = datetime.now()
-
-    assert (
-        dumps(
-            Prettifier().prettify(
-                JObject(
-                    {
-                        "a": E.A,
-                        "b": dt_now.date(),
-                        "c": dt_now.time(),
-                        "d": dt_now,
-                        "e": re.compile(r"(?P<name>\d+)"),
-                    }
-                )
-            ),
-            KayakuEncoder,
-        )
-        == rf"""{{
-    "a": 1,
-    "b": "{dt_now.date().isoformat()}",
-    "c": "{dt_now.time().isoformat()}",
-    "d": "{dt_now.isoformat()}",
-    "e": "(?P<name>\\d+)"
-}}"""
-    )
-
-
-def test_extra_load():
     dt_now = datetime.now()
 
     @dataclass
@@ -136,6 +102,8 @@ def test_extra_load():
         c: time
         d: datetime
         e: re.Pattern
+        f: Union[list, bool]
+        g: Union[int, None]
 
     obj = {
         "a": 1,
@@ -143,7 +111,15 @@ def test_extra_load():
         "c": f"{dt_now.time().isoformat()}",
         "d": f"{dt_now.isoformat()}",
         "e": r"(?P<name>\d+)",
+        "f": JWrapper(True),
+        "g": JWrapper(None),
     }
     assert from_dict(Obj, obj) == Obj(
-        E.A, dt_now.date(), dt_now.time(), dt_now, re.compile(r"(?P<name>\d+)")
+        E.A,
+        dt_now.date(),
+        dt_now.time(),
+        dt_now,
+        re.compile(r"(?P<name>\d+)"),
+        True,
+        None,
     )

@@ -5,9 +5,11 @@ from dataclasses import fields as get_fields
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Type
 
+from .format import format_with_model
 from .schema_gen import ConfigModel, SchemaAnnotation, SchemaGenerator, write_schema_ref
 from .spec import FormattedPath, parse_path, parse_source
 from .storage import insert, lookup
+from .utils import update
 
 MountType = Tuple[str, ...]
 DomainType = Tuple[str, ...]
@@ -125,4 +127,29 @@ def bootstrap() -> None:
 
 
 def save_all() -> None:
-    ...
+    """Save every model in kayaku and format containers.
+
+    Please call this function on cleanup.
+    """
+    from .backend import dumps, loads
+    from .pretty import Prettifier
+
+    exceptions = []
+
+    for path, store in _store.files.items():
+        document = loads(path.read_text("utf-8") or "{}")
+        path.with_suffix(".schema.json").write_text(
+            dumps(store.get_schema()), encoding="utf-8"
+        )
+        for mount_dest, domains in store.mount.items():
+            container = document
+            for sect in mount_dest:
+                container = container.get(sect, {})
+            for domain in domains:
+                model_store = _store.models[domain]
+                if model_store.instance is not None:
+                    update(container, model_store.instance)
+                format_with_model(container, model_store.cls)
+            path.write_text(dumps(Prettifier().prettify(document)), "utf-8")
+    if exceptions:
+        raise ValueError(exceptions)
