@@ -98,21 +98,17 @@ class PathSpec:
         return FormattedPath(Path("/".join(fmt_path)), fmt_sect)  # Allow absolute path
 
 
-_testing: ContextVar[bool] = ContextVar("kayaku.__testing__", default=False)
-
-
 @dataclass
 class FormattedPath:
     path: Path
     mount_dest: list[str]
 
     def __post_init__(self) -> None:
-        if not _testing.get():
-            if not self.path.suffix:
-                self.path = self.path.with_suffix(".jsonc")  # TODO: Config
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            self.path.touch(exist_ok=True)
-            self.path = self.path.resolve()
+        if not self.path.suffix:
+            self.path = self.path.with_suffix(".jsonc")  # TODO: Config
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.touch(exist_ok=True)
+        self.path = self.path.resolve()
 
 
 def parse_path(spec: str) -> PathSpec:

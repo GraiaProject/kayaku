@@ -8,7 +8,6 @@ from kayaku.spec import (
     PathSpec,
     SectionSpec,
     SourceSpec,
-    _testing,
     parse_path,
     parse_source,
 )
@@ -33,20 +32,23 @@ def test_parse_spec_err():
 
 
 def test_format_path_spec():
-    _testing.set(True)
-    assert parse_path("./config/modules/{}::config.{**}.{}.mock").format(
+    base_pth = Path("./temp/spec/").resolve()
+    base_pth.mkdir(parents=True, exist_ok=True)
+    assert parse_path(base_pth.as_posix() + "/{}::config.{**}.{}.mock").format(
         ["a", "b", "c", "d"]
-    ) == FormattedPath(Path("./config/modules/a"), ["config", "b", "c", "d", "mock"])
+    ) == FormattedPath(Path(base_pth / "a"), ["config", "b", "c", "d", "mock"])
 
-    assert parse_path("./config/modules/{}::config.{}.mock").format(
+    assert parse_path(base_pth.as_posix() + "/{}::config.{}.mock").format(
         ["a", "b"]
-    ) == FormattedPath(Path("./config/modules/a"), ["config", "b", "mock"])
+    ) == FormattedPath(Path(base_pth / "a"), ["config", "b", "mock"])
 
-    assert parse_path("./config/modules/{**}::config.{}.{}.mock").format(
+    assert parse_path(base_pth.as_posix() + "/{**}::config.{}.{}.mock").format(
         ["a", "b", "c", "d"]
-    ) == FormattedPath(Path("./config/modules/a/b"), ["config", "c", "d", "mock"])
+    ) == FormattedPath(Path(base_pth / "a/b"), ["config", "c", "d", "mock"])
 
     assert (
-        parse_path("./config/modules/{}:config.{}.mock").format(["a", "b", "c", "d"])
+        parse_path(base_pth.as_posix() + "/{}:config.{}.mock").format(
+            ["a", "b", "c", "d"]
+        )
         is None
     )
