@@ -745,3 +745,76 @@ def test_dc_docstring_merge():
         },
         "required": ["price", "name", "category"],
     }
+
+
+class Book(t_e.TypedDict):
+    name: t_e.Required[str]
+    """Book Name"""
+    isbn: str
+    """ISBN Serial"""
+    author: t_e.Annotated[t_e.Required[str], Schema(title="Book Author")]
+    """Book Author"""
+    year: t_e.Annotated[t_e.NotRequired[int], NumberSchema(maximum=9999)]
+    """Publish Year"""
+
+
+class Disc(t_e.TypedDict, total=False):
+    name: t_e.Required[str]
+    artists: t.List[str]
+    songs: t.List[str]
+
+
+@dataclasses.dataclass
+class DcShelf:
+    items: t.List[t.Union[Book, Disc]]
+
+
+def test_dc_gen_typed_dict():
+    assert get_schema(DcShelf) == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$defs": {
+            "Book": {
+                "properties": {
+                    "author": {
+                        "description": "Book Author",
+                        "title": "Book Author",
+                        "type": "string",
+                    },
+                    "isbn": {"description": "ISBN Serial", "type": "string"},
+                    "name": {"description": "Book Name", "type": "string"},
+                    "year": {
+                        "description": "Publish Year",
+                        "maximum": 9999,
+                        "type": "integer",
+                    },
+                },
+                "required": ["name", "isbn", "author"],
+                "title": "Book",
+                "type": "object",
+            },
+            "Disc": {
+                "properties": {
+                    "artists": {"items": {"type": "string"}, "type": "array"},
+                    "name": {"type": "string"},
+                    "songs": {"items": {"type": "string"}, "type": "array"},
+                },
+                "required": ["name"],
+                "title": "Disc",
+                "type": "object",
+            },
+        },
+        "properties": {
+            "items": {
+                "items": {
+                    "anyOf": [
+                        {"$ref": "#/$defs/Book"},
+                        {"$ref": "#/$defs/Disc"},
+                    ]
+                },
+                "type": "array",
+            }
+        },
+        "required": ["items"],
+        "title": "DcShelf",
+        "type": "object",
+    }

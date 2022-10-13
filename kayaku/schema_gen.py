@@ -223,6 +223,8 @@ class SchemaGenerator:
             return self.get_annotated_schema(typ, default)
         elif typ == t.Any:
             return self.get_any_schema(default)
+        elif t_e.is_typeddict(typ):
+            return self.get_typed_dict_schema(typ)
         elif is_sub_type(typ, dict):
             return self.get_dict_schema(typ)
         elif is_sub_type(typ, list):
@@ -282,6 +284,36 @@ class SchemaGenerator:
             }
         else:
             return {"type": "object"}
+
+    def get_typed_dict_schema(self, typ: type[t.TypedDict]):
+        fields: list[tuple[str, t.Any]] = []
+        required: list[str] = []  # Python 3.8- don't have `__required_keys__`
+        for name, anno in t_e.get_type_hints(typ, include_extras=True).items():
+            anno: t.Any
+            schema_anno: Schema | None = None
+            if t_e.get_origin(anno) == t_e.Annotated:
+                anno, schema_anno = t_e.get_args(anno)
+            if t_e.get_origin(anno) == t_e.Required:
+                required.append(name)
+            elif typ.__total__ and t_e.get_origin(anno) != t_e.NotRequired:
+                required.append(name)
+            if t_e.get_origin(anno) in (t_e.Required, t_e.NotRequired):
+                anno = t_e.get_args(anno)[0]
+            fields.append(
+                (
+                    name,
+                    (anno if schema_anno is None else t_e.Annotated[anno, schema_anno]),
+                )
+            )
+        dc: type[ConfigModel] = t.cast(
+            t.Type[ConfigModel], dataclasses.make_dataclass(typ.__qualname__, fields)
+        )
+        dc.__module__ = typ.__module__
+        store_field_description(dc, dc.__dataclass_fields__)
+        dc_schema = self.get_dc_schema(dc)
+        dc_def = self.defs[self.retrieve_name(dc)]
+        dc_def["required"] = required
+        return dc_schema
 
     def get_list_schema(self, typ):
         args = t_e.get_args(typ)
