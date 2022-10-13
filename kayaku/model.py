@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import gc
+import sys
 from dataclasses import Field, dataclass, field
 from dataclasses import fields as get_fields
 from typing import TYPE_CHECKING, Callable, Tuple, Type, TypeVar, Union, cast
@@ -54,7 +54,9 @@ def config_impl(domain: str, **kwargs) -> Callable[[type], Type[ConfigModel]]:
             ):
                 if m_store.instance is not None:
                     instance = m_store.instance
-                    if len(gc.get_referrers(instance)) > 1:
+                    if (
+                        sys.getrefcount(instance) > 3
+                    ):  # parameter, local var `instance`, `m_store.instance`
                         logger.warning(f"Instance of {other!r} is stilled referred!")
                     m_store.instance = None
                 f_store = g_store.files[m_store.location.path]
@@ -63,7 +65,6 @@ def config_impl(domain: str, **kwargs) -> Callable[[type], Type[ConfigModel]]:
                 g_store.cls_domains.pop(other)
                 other_def_name = f_store.generator.retrieve_name(other)
                 other_schema = f_store.generator.defs.pop(other_def_name)
-                g_store.cls_domains.pop(other)
                 mount_dest = tuple(m_store.location.mount_dest)
                 for field in get_fields(other):
                     sub_dest = mount_dest + (field.name,)
@@ -97,10 +98,8 @@ def create(cls: Type[T], flush: bool = False) -> T:
     from .backend.types import JObject
     from .domain import _store
 
-    if not issubclass(cls, ConfigModel):
-        raise TypeError(f"{cls!r} is not a ConfigModel class!")
-    if cls not in _store.cls_domains:
-        raise NameError(f"{cls!r} is not registered ConfigModel!")
+    if not (issubclass(cls, ConfigModel) and cls in _store.cls_domains):
+        raise TypeError(f"{cls!r} is not a registered ConfigModel class!")
     domain = _store.cls_domains[cls]
     model_store = _store.models[domain]
     if flush or model_store.instance is None:

@@ -1,6 +1,7 @@
 import shutil
+import sys
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import List, Union
 
@@ -34,7 +35,10 @@ def test_main():
         field_name_collision,
         bootstrap_fail,
         nested_model,
+        repl_test,
         basic_test,
+        occupy_test,
+        reload_test,
     ]
     for case in test_cases:
         with start_over():
@@ -47,6 +51,13 @@ def invalid_conf_cls():
         @config("")
         class Conf:
             a: int
+
+    @dataclass
+    class InvalidConfigModel:
+        a: int
+
+    with pytest.raises(TypeError):
+        create(InvalidConfigModel)
 
 
 def empty_location_report():
@@ -103,6 +114,13 @@ def nested_model():
         sub1: Sub1 = field(default_factory=Sub1)
         f: int = 5
 
+    @config("conf.nested.other")
+    class Other:
+        important: bool = True
+
+    save(Other)
+    save(create(Other))
+
     bootstrap()
     save_all()
     assert loads(Path("./temp/full_test/conf.jsonc").read_text()) == {
@@ -113,7 +131,10 @@ def nested_model():
                     "a": 5,
                     "b": 6,
                 },
-            }
+            },
+            "other": {
+                "important": True,
+            },
         },
         "$schema": Path("./temp/full_test/conf.schema.json").resolve().as_uri(),
     }
@@ -212,3 +233,107 @@ def basic_test():
 }}
 """
     )
+
+
+def occupy_test():
+    @config("subscription")
+    class SubConf:
+        organizations: List[str] = field(default_factory=list)
+        """Organizations that you want to subscribe (tracks *all* repo events)"""
+
+        repos: List[str] = field(default_factory=list)
+        """Repositories that you want to subscribe
+        Please avoid duplicating the organizations that you've subscribed.
+        """
+
+    with pytest.raises(NameError):
+
+        @config("subscription")
+        class SubConf2:
+            organizations: List[str] = field(default_factory=list)
+            """Organizations that you want to subscribe (tracks *all* repo events)"""
+
+            repos: List[str] = field(default_factory=list)
+            """Repositories that you want to subscribe
+            Please avoid duplicating the organizations that you've subscribed.
+            """
+
+
+def repl_test():
+    class SubConf:
+        organizations: List[str] = field(default_factory=list)
+        """Organizations that you want to subscribe (tracks *all* repo events)"""
+
+    SubConf.__module__ = "_sre"  # Fake it as a non-retrievable class
+    config("subscription")(SubConf)
+
+
+def reload_test():
+
+    sub_pth = Path("./temp/full_test/subscription.jsonc")
+    sub_pth.write_text(
+        """
+{
+    "organizations": ["GraiaProject", "GraiaCommunity"],
+    "repos": ["GreyElaina/richuru"],
+}
+"""
+    )
+
+    # Initial creation
+    @config("subscription")
+    class SubConf:
+        organizations: List[str] = field(default_factory=list)
+        """Organizations that you want to subscribe (tracks *all* repo events)"""
+
+    # Reload without instantiate
+    @config("subscription")
+    class SubConf:
+        organizations: List[str] = field(default_factory=list)
+        """Organizations that you want to subscribe (tracks *all* repo events)"""
+
+    inst1 = create(SubConf)
+    assert asdict(inst1) == {
+        "organizations": ["GraiaProject", "GraiaCommunity"],
+    }
+
+    sub_pth.write_text(
+        """
+{
+    "organizations": ["GraiaProject", "GraiaCommunity", "OctoOrg"],
+    "repos": ["GreyElaina/richuru"],
+}
+"""
+    )
+
+    assert sys.getrefcount(inst1) == 3
+
+    # Reload, without changes
+    @config("subscription")
+    class SubConf:
+        organizations: List[str] = field(default_factory=list)
+        """Organizations that you want to subscribe (tracks *all* repo events)"""
+
+    inst2 = create(SubConf)
+    assert asdict(inst2) == {
+        "organizations": ["GraiaProject", "GraiaCommunity", "OctoOrg"],
+    }
+
+    assert inst1 is not inst2
+    del inst1, inst2
+
+    # Change schema
+    @config("subscription")
+    class SubConf:
+        organizations: List[str] = field(default_factory=list)
+        """Organizations that you want to subscribe (tracks *all* repo events)"""
+
+        repos: List[str] = field(default_factory=list)
+        """Repositories that you want to subscribe
+        Please avoid duplicating the organizations that you've subscribed.
+        """
+
+    assert asdict(create(SubConf)) == {
+        "organizations": ["GraiaProject", "GraiaCommunity", "OctoOrg"],
+        "repos": ["GreyElaina/richuru"],
+    }

@@ -3,7 +3,9 @@ from __future__ import annotations
 import ast
 import inspect
 from types import MappingProxyType
-from typing import TYPE_CHECKING, cast
+from typing import cast
+
+from loguru import logger
 
 from .schema_gen import ConfigModel
 
@@ -19,9 +21,15 @@ def cleanup_src(src: str) -> str:
 def store_field_description(
     cls: type[ConfigModel],
 ) -> None:
-    node: ast.ClassDef = cast(
-        ast.ClassDef, ast.parse(cleanup_src(inspect.getsource(cls))).body[0]
-    )
+    try:
+        node: ast.ClassDef = cast(
+            ast.ClassDef, ast.parse(cleanup_src(inspect.getsource(cls))).body[0]
+        )
+    except (TypeError, OSError):  # NOTE: for REPL.
+        logger.error(
+            f"Unable to store description for {cls.__qualname__}, maybe the source file is not reachable."
+        )
+        return
     for i, stmt in enumerate(node.body):
         name: str | None = None
         if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
