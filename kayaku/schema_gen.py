@@ -78,9 +78,7 @@ SCHEMA_ANNO_KEY_MAP = {
 @dataclasses.dataclass(frozen=True)
 class Schema:
     title: t.Optional[str] = None
-    description: t.Optional[str] = dataclasses.field(
-        default=None, compare=False, hash=False
-    )
+    description: t.Optional[str] = None
     examples: t.Optional[list[t.Any]] = None
     deprecated: t.Optional[bool] = None
 
@@ -146,6 +144,11 @@ class SchemaGenerator:
     def retrieve_title(self, typ: t.Type) -> str:
         return self.retrieve_name(typ)
 
+    def format_docstring_description(
+        self, field: dataclasses.Field, description: str
+    ) -> str | None:
+        return description
+
     @classmethod
     def from_dc(cls, dc: t.Type[ConfigModel]) -> dict[str, t.Any]:
         generator = cls(dc)
@@ -185,6 +188,20 @@ class SchemaGenerator:
         type_hints = t_e.get_type_hints(dc, include_extras=True)
         for field in dataclasses.fields(dc):
             typ = type_hints[field.name]
+            if (f_description := field.metadata.get("description")) is not None:
+                f_a: Schema
+                base, f_a = (
+                    t_e.get_args(typ)
+                    if t_e.get_origin(typ) == t_e.Annotated
+                    else (typ, Schema())
+                )
+                if f_a.description is None:
+                    object.__setattr__(
+                        f_a,
+                        "description",
+                        self.format_docstring_description(field, f_description),
+                    )
+                typ = t_e.Annotated[base, f_a]
             schema["properties"][field.name] = self.get_field_schema(typ, field.default)
             field_is_optional = (
                 field.default is not _MISSING or field.default_factory is not _MISSING

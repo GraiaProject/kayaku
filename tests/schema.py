@@ -708,3 +708,40 @@ def test_get_incorrect_annotation():
     ):
         with pytest.raises(TypeError):
             get_schema(typ)
+
+
+@dataclasses.dataclass
+class DcProduct:
+    price: t_e.Annotated[float, NumberSchema(minimum=0, maximum=5000)]
+    """Price of the product."""
+
+    name: t_e.Annotated[str, Schema(description="Name of the product.")]
+    """_name of the product_"""
+
+    category: str
+    """Category of the product."""
+
+
+def test_dc_docstring_merge():
+    assert get_schema(DcProduct) == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "DcProduct",
+        "properties": {
+            "price": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 5000,
+                "description": "Price of the product.",
+            },
+            "name": {
+                "type": "string",
+                "description": "Name of the product.",
+            },
+            "category": {
+                "type": "string",
+                "description": "Category of the product.",
+            },
+        },
+        "required": ["price", "name", "category"],
+    }
