@@ -15,7 +15,7 @@ def test_extract_attr_docs():
         c document
         """
 
-    store_field_description(M)
+    store_field_description(M, M.__dataclass_fields__)
     assert {
         k: f.metadata.get("description") for k, f in M.__dataclass_fields__.items()
     } == {

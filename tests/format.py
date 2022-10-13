@@ -29,7 +29,7 @@ def test_format_model():
         """
         default: D = field(default_factory=D)
 
-    store_field_description(Model)
+    store_field_description(Model, Model.__dataclass_fields__)
 
     data = json5.loads(
         """

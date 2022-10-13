@@ -38,7 +38,14 @@ import pytest
 import typing_extensions as t_e
 from jsonschema.validators import Draft202012Validator
 
-from kayaku.schema_gen import ConfigModel, SchemaAnnotation, SchemaGenerator
+from kayaku.schema_gen import (
+    ConfigModel,
+    ContainerSchema,
+    NumberSchema,
+    Schema,
+    SchemaGenerator,
+    StringSchema,
+)
 
 
 # TODO: Support description in field metadata
@@ -322,7 +329,7 @@ def test_get_schema_literal():
 class DcAny:
     a: t.Any
     x: t.Union[int, t.Any] = 4
-    b: t_e.Annotated[t.Any, SchemaAnnotation("B!!!")] = 5
+    b: t_e.Annotated[t.Any, Schema("B!!!")] = 5
 
 
 def test_get_schema_any():
@@ -393,10 +400,8 @@ def test_get_schema_set():
 
 @dataclasses.dataclass
 class DcStrAnnotated:
-    a: t_e.Annotated[str, SchemaAnnotation(min_length=3, max_length=5)]
-    b: t_e.Annotated[
-        str, SchemaAnnotation(format="date", pattern=r"^\d.*")
-    ] = "2000-01-01"
+    a: t_e.Annotated[str, StringSchema(min_length=3, max_length=5)]
+    b: t_e.Annotated[str, StringSchema(format="date", pattern=r"^\d.*")] = "2000-01-01"
 
 
 def test_get_schema_str_annotation():
@@ -422,11 +427,11 @@ def test_get_schema_str_annotation():
 
 @dataclasses.dataclass
 class DcNumberAnnotated:
-    a: t_e.Annotated[int, SchemaAnnotation(minimum=1, exclusive_maximum=11)]
-    b: t.List[t_e.Annotated[int, SchemaAnnotation(minimum=0)]]
-    c: t.Optional[t_e.Annotated[int, SchemaAnnotation(minimum=0)]]
+    a: t_e.Annotated[int, NumberSchema(minimum=1, exclusive_maximum=11)]
+    b: t.List[t_e.Annotated[int, NumberSchema(minimum=0)]]
+    c: t.Optional[t_e.Annotated[int, NumberSchema(minimum=0)]]
     d: t_e.Annotated[
-        float, SchemaAnnotation(maximum=12, exclusive_minimum=17, multiple_of=5)
+        float, NumberSchema(maximum=12, exclusive_minimum=17, multiple_of=5)
     ] = 33.1
 
 
@@ -523,7 +528,7 @@ def test_get_schema_regex():
 
 @dataclasses.dataclass
 class DcAnnotatedBook:
-    title: t_e.Annotated[str, SchemaAnnotation(title="Title")]
+    title: t_e.Annotated[str, Schema(title="Title")]
 
 
 class DcAnnotatedAuthorHobby(enum.Enum):
@@ -535,18 +540,14 @@ class DcAnnotatedAuthorHobby(enum.Enum):
 class DcAnnotatedAuthor:
     name: t_e.Annotated[
         str,
-        SchemaAnnotation(
-            description="the name of the author", examples=["paul", "alice"]
-        ),
+        Schema(description="the name of the author", examples=["paul", "alice"]),
     ]
     books: t_e.Annotated[
         t.List[DcAnnotatedBook],
-        SchemaAnnotation(description="all the books the author has written"),
+        Schema(description="all the books the author has written"),
     ]
-    hobby: t_e.Annotated[DcAnnotatedAuthorHobby, SchemaAnnotation(deprecated=True)]
-    age: t_e.Annotated[
-        t.Union[int, float], SchemaAnnotation(description="age in years")
-    ] = 42
+    hobby: t_e.Annotated[DcAnnotatedAuthorHobby, Schema(deprecated=True)]
+    age: t_e.Annotated[t.Union[int, float], Schema(description="age in years")] = 42
 
 
 def test_config_model_abc():
@@ -612,8 +613,8 @@ class DcSchemaConfigChild:
 class DcSchemaConfig:
     a: str
     child_1: DcSchemaConfigChild
-    child_2: t_e.Annotated[DcSchemaConfigChild, SchemaAnnotation(title="2nd child")]
-    friend: t_e.Annotated[DcSchemaConfig, SchemaAnnotation(title="a friend")]
+    child_2: t_e.Annotated[DcSchemaConfigChild, Schema(title="2nd child")]
+    friend: t_e.Annotated[DcSchemaConfig, Schema(title="a friend")]
 
 
 def test_get_schema_config():
@@ -648,10 +649,11 @@ def test_get_schema_config():
 @dataclasses.dataclass
 class DcListAnnotation:
     a: t_e.Annotated[
-        t.List[int], SchemaAnnotation(min_items=3, max_items=5, unique_items=True)
+        t.List[int],
+        ContainerSchema(min_items=3, max_items=5, unique_items=True),
     ]
     b: t_e.Annotated[
-        t.Tuple[float, ...], SchemaAnnotation(min_items=3, max_items=10)
+        t.Tuple[float, ...], ContainerSchema(min_items=3, max_items=10)
     ] = ()
 
 
@@ -681,3 +683,28 @@ def test_get_schema_list_annotation():
         },
         "required": ["a"],
     }
+
+
+@dataclasses.dataclass
+class DcIncorrectStringAnnotation:
+    price: t_e.Annotated[int, StringSchema(pattern=r"\d+")]
+
+
+@dataclasses.dataclass
+class DcIncorrectNumberAnnotation:
+    price: t_e.Annotated[str, NumberSchema(maximum=10)]
+
+
+@dataclasses.dataclass
+class DcIncorrectContainerAnnotation:
+    price: t_e.Annotated[int, ContainerSchema(max_items=5)]
+
+
+def test_get_incorrect_annotation():
+    for typ in (
+        DcIncorrectContainerAnnotation,
+        DcIncorrectNumberAnnotation,
+        DcIncorrectStringAnnotation,
+    ):
+        with pytest.raises(TypeError):
+            get_schema(typ)

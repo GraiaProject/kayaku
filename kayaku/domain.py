@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Set, Tuple, Type
 from kayaku.backend.types import JObject
 
 from .format import format_with_model
-from .schema_gen import ConfigModel, SchemaAnnotation, SchemaGenerator, write_schema_ref
+from .schema_gen import ConfigModel, Schema, SchemaGenerator, write_schema_ref
 from .spec import FormattedPath, parse_path, parse_source
 from .storage import insert, lookup
 from .utils import update
@@ -62,7 +62,7 @@ def insert_domain(domain: DomainType, cls: Type[ConfigModel]) -> None:
         file_store.field_mount_record.add(sub_dest)
     file_store.mount.setdefault(mount_dest, []).append(domain)
     _store.models[domain] = _ModelStore(cls, fmt_path, None)
-    file_store.generator.get_dc_schema(cls, SchemaAnnotation())
+    file_store.generator.get_dc_schema(cls)
     write_schema_ref(
         file_store.schemas, mount_dest, file_store.generator.retrieve_name(cls)
     )

@@ -59,7 +59,7 @@ exclude_lines = [
     "if 0:",
     "if __name__ == .__main__.:",
     "if (typing\\.)?TYPE_CHECKING( is True)?:",
-    "\\.\\.\\.",
+    "^ *\\.\\.\\.$",
     "pass",
     # Don't complain about abstract methods, they aren't run:
     "@(abc\\.)?abstractmethod",

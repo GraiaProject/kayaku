@@ -245,14 +245,6 @@ A Key-Value pair in an [Object][kayaku.backend.types.Object]
 """
 
 
-class TupleWithTrailingComma(Tuple[T, ...]):
-    trailing_comma: bool = False
-
-    def __post_init__(self, trailing_comma: bool = False) -> Self:
-        self.trailing_comma = trailing_comma
-        return Self
-
-
 JSONType_T = TypeVar("JSONType_T", bound=JType)
 
 

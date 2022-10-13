@@ -40,7 +40,6 @@ def config_impl(domain: str, **kwargs) -> Callable[[type], Type[ConfigModel]]:
         from .domain import insert_domain
 
         cls = cast(Type[ConfigModel], dataclass(**kwargs)(cls))
-        store_field_description(cls)
         domain_tup: Tuple[str, ...] = tuple(domain.split("."))
         if not all(domain_tup):
             raise ValueError(f"{domain!r} contains empty segment!")
