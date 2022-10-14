@@ -75,6 +75,7 @@ def initialize(specs: Dict[str, str]) -> None:
 
     Example:
 
+        ```py
         class Connection(Dataclass, domain="my_mod.config.connection"):
             account: int | None = None
             "Account"
@@ -82,8 +83,9 @@ def initialize(specs: Dict[str, str]) -> None:
             "password"
 
         initialize({"{**}.connection": "./config/connection.jsonc::{**}})
+        ```
 
-    Above will make `Connection` stored in `./config/connection.jsonc`'s `["my_mod"]["config"]` section.
+        Above will make `Connection` stored in `./config/connection.jsonc`'s `["my_mod"]["config"]` section.
     """
     exceptions: list[Exception] = []
     for src, path in specs.items():
@@ -102,6 +104,7 @@ def initialize(specs: Dict[str, str]) -> None:
 def bootstrap() -> None:
     """Populates json schema and default data for all `ConfigModel` that have registered."""
     from .backend import dumps, loads
+    from .pretty import Prettifier
     from .utils import from_dict
 
     exceptions = []
@@ -122,6 +125,10 @@ def bootstrap() -> None:
                         model_store.instance = from_dict(model_store.cls, container)
                     except Exception as e:
                         exceptions.append((path, mount_dest, model_store.cls, e))
+                format_with_model(container, model_store.cls)
+        document.pop("$schema", None)
+        document["$schema"] = path.with_suffix(".schema.json").as_uri()
+        path.write_text(dumps(Prettifier().prettify(document), endline=True), "utf-8")
     if exceptions:
         raise ValueError(exceptions)
 
@@ -148,8 +155,6 @@ def save_all() -> None:
                 if model_store.instance is not None:
                     update(container, model_store.instance)
                 format_with_model(container, model_store.cls)
-            document.pop("$schema", None)
-            document["$schema"] = path.with_suffix(".schema.json").as_uri()
-            path.write_text(
-                dumps(Prettifier().prettify(document), endline=True), "utf-8"
-            )
+        document.pop("$schema", None)
+        document["$schema"] = path.with_suffix(".schema.json").as_uri()
+        path.write_text(dumps(Prettifier().prettify(document), endline=True), "utf-8")
