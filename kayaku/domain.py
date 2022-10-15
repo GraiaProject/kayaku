@@ -5,13 +5,14 @@ from dataclasses import fields as get_fields
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Type
 
-from kayaku.backend.types import JObject
-
+from .backend import dumps, loads
+from .backend.types import JObject
 from .format import format_with_model
-from .schema_gen import ConfigModel, Schema, SchemaGenerator, write_schema_ref
+from .pretty import Prettifier
+from .schema_gen import ConfigModel, SchemaGenerator, write_schema_ref
 from .spec import FormattedPath, parse_path, parse_source
 from .storage import insert, lookup
-from .utils import update
+from .utils import from_dict, update
 
 MountType = Tuple[str, ...]
 DomainType = Tuple[str, ...]
@@ -19,8 +20,8 @@ DomainType = Tuple[str, ...]
 
 @dataclass
 class _FileStore:
+    generator: SchemaGenerator
     schemas: dict = field(default_factory=dict)
-    generator: SchemaGenerator = field(default_factory=lambda: SchemaGenerator(None))
     mount: Dict[MountType, List[DomainType]] = field(default_factory=dict)
     field_mount_record: Set[MountType] = field(default_factory=set)
 
@@ -41,12 +42,14 @@ class _ModelStore:
 
 @dataclass
 class _GlobalStore:
+    prettifier: Prettifier
+    generator_cls: Type[SchemaGenerator]
     files: Dict[Path, _FileStore] = field(default_factory=dict)
     models: Dict[DomainType, _ModelStore] = field(default_factory=dict)
     cls_domains: Dict[Type[ConfigModel], DomainType] = field(default_factory=dict)
 
 
-_store = _GlobalStore()
+_store: _GlobalStore
 
 
 def insert_domain(domain: DomainType, cls: Type[ConfigModel]) -> None:
@@ -54,7 +57,7 @@ def insert_domain(domain: DomainType, cls: Type[ConfigModel]) -> None:
     fmt_path: FormattedPath = lookup(list(domain))
     path = fmt_path.path
     mount_dest = tuple(fmt_path.mount_dest)
-    file_store = _store.files.setdefault(path, _FileStore())
+    file_store = _store.files.setdefault(path, _FileStore(_store.generator_cls(None)))
     for field in get_fields(cls):
         sub_dest: MountType = mount_dest + (field.name,)
         if sub_dest in file_store.field_mount_record:
@@ -68,10 +71,19 @@ def insert_domain(domain: DomainType, cls: Type[ConfigModel]) -> None:
     )
 
 
-def initialize(specs: Dict[str, str]) -> None:
-    """Initialize Kayaku.
+def initialize(
+    specs: Dict[str, str],
+    prettifier: Optional[Prettifier] = None,
+    schema_generator_cls: Type[SchemaGenerator] = SchemaGenerator,
+) -> None:
+    """初始化 Kayaku.
 
-    This operation will load `specs` as a `source pattern -> path pattern` mapping.
+    本函数需要最先被调用.
+
+    Args:
+        specs (Dict[str, str]): `domain 样式 -> 路径样式` 的映射.
+        prettifier (Prettifier, optional): 格式化器.
+        schema_generator_cls (Type[SchemaGenerator], optional): JSON Schema 生成器的类.
 
     Example:
 
@@ -85,8 +97,10 @@ def initialize(specs: Dict[str, str]) -> None:
         initialize({"{**}.connection": "./config/connection.jsonc::{**}})
         ```
 
-        Above will make `Connection` stored in `./config/connection.jsonc`'s `["my_mod"]["config"]` section.
+        以上代码将会将 `Connection` 类的数据存储在 `./config/connection.jsonc` 文件的 `["my_mod"]["config"]` 里.
     """
+    global _store
+    _store = _GlobalStore(prettifier or Prettifier(), schema_generator_cls)
     exceptions: list[Exception] = []
     for src, path in specs.items():
         try:
@@ -102,10 +116,10 @@ def initialize(specs: Dict[str, str]) -> None:
 
 
 def bootstrap() -> None:
-    """Populates json schema and default data for all `ConfigModel` that have registered."""
-    from .backend import dumps, loads
-    from .pretty import Prettifier
-    from .utils import from_dict
+    """预处理所有 `ConfigModel` 并写入默认值和 JSON Schema.
+
+    建议在加载完外部模块后调用.
+    """
 
     exceptions = []
 
@@ -128,18 +142,18 @@ def bootstrap() -> None:
                 format_with_model(container, model_store.cls)
         document.pop("$schema", None)
         document["$schema"] = path.with_suffix(".schema.json").as_uri()
-        path.write_text(dumps(Prettifier().prettify(document), endline=True), "utf-8")
+        path.write_text(
+            dumps(_store.prettifier.prettify(document), endline=True), "utf-8"
+        )
     if exceptions:
         raise ValueError(exceptions)
 
 
 def save_all() -> None:
-    """Save every model in kayaku and format containers.
+    """保存所有容器，并格式化。
 
-    Please call this function on cleanup.
+    可以在退出前调用本函数。
     """
-    from .backend import dumps, loads
-    from .pretty import Prettifier
 
     for path, store in _store.files.items():
         document = loads(path.read_text("utf-8") or "{}")
@@ -157,4 +171,6 @@ def save_all() -> None:
                 format_with_model(container, model_store.cls)
         document.pop("$schema", None)
         document["$schema"] = path.with_suffix(".schema.json").as_uri()
-        path.write_text(dumps(Prettifier().prettify(document), endline=True), "utf-8")
+        path.write_text(
+            dumps(_store.prettifier.prettify(document), endline=True), "utf-8"
+        )

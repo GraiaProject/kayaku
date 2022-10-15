@@ -134,7 +134,7 @@ def is_sub_type(sub: t.Any, parent: t.Any) -> bool:
 
 
 class SchemaGenerator:
-    def __init__(self, dc: t.Type[ConfigModel] | None) -> None:
+    def __init__(self, dc: t.Type[ConfigModel] | None = None) -> None:
         self.root = dc
         self.seen_root = False
         self.defs = {}
@@ -457,23 +457,3 @@ def write_schema_ref(root: dict, sect: tuple[str, ...], name: str) -> None:
     all_of: list[dict[str, str]] = root.setdefault("allOf", [])
     if {"$ref": f"#/$defs/{name}"} not in all_of:
         all_of.append({"$ref": f"#/$defs/{name}"})
-
-
-def gen_schema_from_list(
-    models: list[tuple[tuple[str, ...], type[ConfigModel]]]
-) -> dict[str, t.Any]:
-
-    schemas = {}
-    generator = SchemaGenerator(None)
-
-    for sect, model in models:
-        generator.get_dc_schema(model)  # preserve the model's schema in its `defs`
-        write_schema_ref(schemas, sect, generator.retrieve_name(model))
-
-    if generator.defs:
-        schemas["$defs"] = generator.defs
-
-    return {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        **schemas,
-    }

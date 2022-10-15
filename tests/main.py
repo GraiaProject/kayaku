@@ -12,13 +12,15 @@ import kayaku.domain
 import kayaku.storage
 from kayaku import bootstrap, config, create, initialize, save, save_all
 from kayaku.backend import loads
+from kayaku.pretty import Prettifier
+from kayaku.schema_gen import SchemaGenerator
 
 
 @contextmanager
 def start_over():
     base_pth = Path("./temp/full_test").resolve()
     base_pth.mkdir(parents=True, exist_ok=True)
-    kayaku.domain._store = kayaku.domain._GlobalStore()
+    kayaku.domain._store = kayaku.domain._GlobalStore(Prettifier, SchemaGenerator)
     kayaku.storage._root.set(kayaku.storage._PrefixNode())
     kayaku.initialize({"{**}": base_pth.as_posix() + "/{}::{**}"})
     yield
@@ -27,7 +29,7 @@ def start_over():
 
 def test_main():
 
-    invalid_conf_cls()
+    start_before_init()
     empty_location_report()
 
     test_cases = [
@@ -39,10 +41,19 @@ def test_main():
         basic_test,
         occupy_test,
         reload_test,
+        invalid_conf_cls,
     ]
     for case in test_cases:
         with start_over():
             case()
+
+
+def start_before_init():
+    with pytest.raises(RuntimeError):
+
+        @config("config")
+        class Conf:
+            a: int
 
 
 def invalid_conf_cls():
@@ -61,6 +72,7 @@ def invalid_conf_cls():
 
 
 def empty_location_report():
+    kayaku.domain._store = kayaku.domain._GlobalStore(Prettifier, SchemaGenerator)
     with pytest.raises(ValueError):
 
         @config("domain.conf.1")

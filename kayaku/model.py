@@ -9,7 +9,8 @@ from dacite.core import from_dict
 from loguru import logger
 from typing_extensions import dataclass_transform
 
-from .doc_parse import store_field_description
+from .backend import dumps, loads
+from .backend.types import JObject
 from .pretty import Prettifier
 from .schema_gen import ConfigModel
 from .utils import update
@@ -31,12 +32,12 @@ def config_stub(
     kw_only=False,
     slots=False,
 ) -> Callable[[type[T]], type[T]]:
-    """Turn the class into a "dataclass-like" class.
+    """将类型转换为 kayaku 承认的设置类。
 
-    The rest args will be passed directly to [`dataclasses.dataclass`][dataclasses.dataclass] for conversion.
+    `domain` 以外的参数将被直接传入 [`dataclasses.dataclass`][dataclasses.dataclass] 进行转换。
 
     Args:
-        domain (str): The *unique* categorical and structural position of the class.
+        domain (str): *唯一的* 用于标识类的结构位置与类别的字符串，用 `.` 分开。
 
         init (bool, optional): If true (the default), a __init__() method will be generated.
         repr (bool, optional): If true (the default), a __repr__() method will be generated.
@@ -48,13 +49,17 @@ def config_stub(
         kw_only (bool, optional): If specified, then all fields will be marked as keyword-only.
         slots (bool, optional): If specified, __slots__ attribute will be generated and new class will be returned instead of the original one.
     Returns:
-        A class decorator. The class will be changed if you specify `slots`.
+        类的装饰器。
     """
     ...
 
 
 def config_impl(domain: str, **kwargs) -> Callable[[type], Type[ConfigModel]]:
     def wrapper(cls: type) -> type[ConfigModel]:
+        from . import domain as domain_mod
+
+        if not hasattr(domain_mod, "_store"):
+            raise RuntimeError("You cannot call `config` before initialization!")
         from .domain import _store as g_store
         from .domain import insert_domain
 
@@ -107,13 +112,14 @@ config = config_stub if TYPE_CHECKING else config_impl
 
 
 def create(cls: Type[T], flush: bool = False) -> T:
-    """Create a model.
+    """创建对应的模型。
 
-    Specifying `flush` will force a model-level data reload.
+    给 `flush` 传入真值会强制重载。
 
-    Note: It's *highly* recommended that you `create` a model every time (for safe reload).
+    Note:
+        为了安全重载，我们推荐你让返回的实例存活时间尽量短。
     """
-    from .backend.types import JObject
+
     from .domain import _store
 
     if not (issubclass(cls, ConfigModel) and cls in _store.cls_domains):
@@ -121,10 +127,9 @@ def create(cls: Type[T], flush: bool = False) -> T:
     domain = _store.cls_domains[cls]
     model_store = _store.models[domain]
     if flush or model_store.instance is None:
-        from . import backend as json5
 
         fmt_path = model_store.location
-        document = json5.loads(fmt_path.path.read_text("utf-8") or "{}")
+        document = loads(fmt_path.path.read_text("utf-8") or "{}")
         container = document
         for sect in fmt_path.mount_dest:
             container = container.setdefault(sect, JObject())
@@ -134,9 +139,7 @@ def create(cls: Type[T], flush: bool = False) -> T:
 
 
 def save(model: Union[T, Type[T]]) -> None:
-    """Save a model. Associated schema will be updated as well."""
-    from .backend import dumps, loads
-    from .backend.types import JObject
+    """保存某个类的设置。 对应的 JSON Schema 也会被更新。"""
     from .domain import _store
 
     cls = cast(Type[ConfigModel], model if isinstance(model, type) else model.__class__)
@@ -151,7 +154,7 @@ def save(model: Union[T, Type[T]]) -> None:
         document.pop("$schema", None)
         document["$schema"] = m_store.location.path.with_suffix(".schema.json").as_uri()
         m_store.location.path.write_text(
-            dumps(Prettifier().prettify(document), endline=True), "utf-8"
+            dumps(_store.prettifier.prettify(document), endline=True), "utf-8"
         )
     m_store.location.path.with_suffix(".schema.json").write_text(
         dumps(_store.files[m_store.location.path].get_schema()), "utf-8"

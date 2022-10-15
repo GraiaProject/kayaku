@@ -8,7 +8,6 @@ from typing import Union
 from kayaku.backend import dumps, loads
 from kayaku.backend.types import JObject, JWrapper
 from kayaku.pretty import Prettifier
-from kayaku.schema_gen import gen_schema_from_list
 from kayaku.utils import from_dict, update
 
 update_input = """\
