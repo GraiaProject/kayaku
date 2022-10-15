@@ -48,7 +48,6 @@ from kayaku.schema_gen import (
 )
 
 
-# TODO: Support description in field metadata
 def get_schema(obj: type[ConfigModel]):
     class NameOnlyGen(SchemaGenerator):
         def retrieve_name(self, typ: t.Type) -> str:
@@ -816,5 +815,50 @@ def test_dc_gen_typed_dict():
         },
         "required": ["items"],
         "title": "DcShelf",
+        "type": "object",
+    }
+
+
+class StoreItem(t_e.TypedDict):
+    """Represents an item in store."""
+
+    name: str
+    """Item Name"""
+    price: float
+    """Item Price"""
+
+
+@dataclasses.dataclass
+class DcStore:
+    """Represents a store."""
+
+    items: t.List[StoreItem]
+
+
+def test_dc_gen_with_cls_doc():
+    assert get_schema(DcStore) == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$defs": {
+            "StoreItem": {
+                "properties": {
+                    "name": {"description": "Item Name", "type": "string"},
+                    "price": {"description": "Item Price", "type": "number"},
+                },
+                "required": ["name", "price"],
+                "title": "StoreItem",
+                "type": "object",
+            },
+        },
+        "properties": {
+            "items": {
+                "items": {
+                    "$ref": "#/$defs/StoreItem",
+                },
+                "type": "array",
+            }
+        },
+        "required": ["items"],
+        "title": "DcStore",
+        "description": "Represents a store.",
         "type": "object",
     }

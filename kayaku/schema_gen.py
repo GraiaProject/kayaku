@@ -32,6 +32,7 @@ from __future__ import annotations
 import dataclasses
 import datetime
 import enum
+import inspect
 import numbers
 import re
 import typing as t
@@ -186,6 +187,12 @@ class SchemaGenerator:
         }
         store_field_description(dc, dc.__dataclass_fields__)
         type_hints = t_e.get_type_hints(dc, include_extras=True)
+        if (
+            dc.__doc__ is not None
+            and dc.__doc__
+            != f"{dc.__name__}{str(inspect.signature(dc)).replace(' -> None', '')}"  # Ignore the generated __doc__
+        ):
+            schema["description"] = dc.__doc__
         for field in dataclasses.fields(dc):
             typ = type_hints[field.name]
             if (f_description := field.metadata.get("description")) is not None:
@@ -309,7 +316,7 @@ class SchemaGenerator:
             t.Type[ConfigModel], dataclasses.make_dataclass(typ.__qualname__, fields)
         )
         dc.__module__ = typ.__module__
-        store_field_description(dc, dc.__dataclass_fields__)
+        store_field_description(typ, dc.__dataclass_fields__)
         dc_schema = self.get_dc_schema(dc)
         dc_def = self.defs[self.retrieve_name(dc)]
         dc_def["required"] = required
