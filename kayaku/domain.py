@@ -88,13 +88,18 @@ def initialize(
     Example:
 
         ```py
-        class Connection(Dataclass, domain="my_mod.config.connection"):
+        from kayaku import bootstrap, config, initialize
+
+        initialize({"{**}.connection": "./config/connection.jsonc::{**}})
+
+        @config("my_mod.config.connection")
+        class Connection:
             account: int | None = None
             "Account"
             password: str | None = None
             "password"
 
-        initialize({"{**}.connection": "./config/connection.jsonc::{**}})
+        bootstrap()
         ```
 
         以上代码将会将 `Connection` 类的数据存储在 `./config/connection.jsonc` 文件的 `["my_mod"]["config"]` 里.
