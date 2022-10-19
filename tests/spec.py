@@ -52,3 +52,6 @@ def test_format_path_spec():
         )
         is None
     )
+    assert parse_path(base_pth.as_posix() + "/{**}").format(
+        ["a", "b", "c"]
+    ) == FormattedPath(Path(base_pth / "a/b/c"), [])

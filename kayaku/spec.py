@@ -115,9 +115,9 @@ def parse_path(spec: str) -> PathSpec:
     replacer = {"{*}": PathFill.SINGLE, "{}": PathFill.SINGLE, "{**}": PathFill.EXTEND}
     location, section = spec.rsplit("::", 1) if "::" in spec else (spec, "")
     path_parts: list[str | PathFill] = [replacer.get(l, l) for l in location.split("/")]
-    section_parts: list[str | PathFill] = [
-        replacer.get(l, l) for l in section.split(".")
-    ]
+    section_parts: list[str | PathFill] = (
+        [replacer.get(l, l) for l in section.split(".")] if section else []
+    )
     if path_parts.count(PathFill.EXTEND) + section_parts.count(PathFill.EXTEND) > 1:
         raise ValueError(f"""Found more than one "extend" part ({{**}}) in {spec}""")
     return PathSpec(path_parts, section_parts)

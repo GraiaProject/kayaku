@@ -293,6 +293,11 @@ def convert(obj: Any) -> JType:
         return obj
     if isinstance(obj, (list, tuple)):
         o = Array(obj)
+    elif (
+        isinstance(obj, (bool, date, time, datetime, re.Pattern, enum.Enum))
+        or obj == None
+    ):
+        o = JWrapper(obj)
     elif isinstance(obj, dict):
         o = JObject(obj)
     elif isinstance(obj, str):
@@ -301,11 +306,6 @@ def convert(obj: Any) -> JType:
         o = Integer(obj)
     elif isinstance(obj, float):
         o = Float(obj)
-    elif (
-        isinstance(obj, (bool, date, time, datetime, re.Pattern, enum.Enum))
-        or obj == None
-    ):
-        o = JWrapper(obj)
     else:
         raise TypeError(f"{obj} can't be automatically converted to JSONType!")
     o.__post_init__()
