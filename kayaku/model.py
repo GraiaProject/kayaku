@@ -5,15 +5,13 @@ from dataclasses import Field, dataclass, field
 from dataclasses import fields as get_fields
 from typing import TYPE_CHECKING, Callable, Tuple, Type, TypeVar, Union, cast
 
-from dacite.core import from_dict
 from loguru import logger
 from typing_extensions import dataclass_transform
 
 from .backend import dumps, loads
 from .backend.types import JObject
-from .pretty import Prettifier
 from .schema_gen import ConfigModel
-from .utils import update
+from .utils import from_dict, update
 
 T = TypeVar("T")
 
