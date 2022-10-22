@@ -15,10 +15,12 @@ test_input = """\
         * @type: int
         */
         "account": 0,
-        "string": "abc\\
+        "multi": "abc\\
 def\\
 lll\\
-"
+",
+        'pragma': '中文。\\
+asd'
     },
     "next":{
         /*@type: List[dict]*/
@@ -53,7 +55,10 @@ def test_backend_round_trip():
     out_io = io.StringIO()
 
     assert backend.dumps(backend.loads(test_input)) == test_input
-    backend.dump(backend.load(in_io), out_io)
+    obj = backend.load(in_io)
+    assert obj["base"]["multi"] == "abcdeflll"
+    assert obj["base"]["pragma"] == "中文。asd"
+    backend.dump(obj, out_io)
     assert out_io.getvalue() == test_input
 
     backend.env.DEBUG.set(True)

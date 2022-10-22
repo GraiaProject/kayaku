@@ -47,7 +47,7 @@ def loads(src: str) -> Any:
     return transformer.transform(tree)
 
 
-def load(file: TextIO | Path) -> str:
+def load(file: TextIO | Path) -> Any:
     """
     Parse JSON from a file-like object
     """

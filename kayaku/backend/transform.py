@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import re
 from typing import Any, cast
 
@@ -38,18 +39,16 @@ class Transformer(BaseTransformer):
         return string
 
     @v_args(inline=True)
-    def SINGLE_QUOTE_CHARS(self, token: Token) -> str:
-        return (
-            token.value.replace("\\/", "/")
-            .encode()
-            .decode("unicode_escape", "surrogatepass")
-        )
+    def SINGLE_QUOTE_CHARS(self, token: Token) -> tuple[str, list[int]]:
+        return ast.literal_eval(f'"{token.value}"'), [
+            m.start() for m in re.finditer("\\\n", token.value)
+        ]
 
     @v_args(inline=True)
     def DOUBLE_QUOTE_CHARS(self, token: Token) -> tuple[str, list[int]]:
-        return token.value.replace("\\/", "/").encode().decode(
-            "unicode_escape", "surrogatepass"
-        ), [m.start() for m in re.finditer("\\\n", token.value)]
+        return ast.literal_eval(f'"{token.value}"'), [
+            m.start() for m in re.finditer("\\\n", token.value)
+        ]
 
     @v_args(inline=True)
     def double_quote_string(
@@ -61,9 +60,12 @@ class Transformer(BaseTransformer):
         return s
 
     @v_args(inline=True)
-    def single_quote_string(self, string: str | None = None) -> JString:
-        s = JString(string or "")
-        s.__post_init__(quote=Quote.SINGLE)
+    def single_quote_string(
+        self, string: tuple[str, list[int]] | None = None
+    ) -> JString:
+        value, linebreaks = string or ("", [])
+        s = JString(value)
+        s.__post_init__(quote=Quote.SINGLE, linebreaks=linebreaks)
         return s
 
     @v_args(inline=True)
