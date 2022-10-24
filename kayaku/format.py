@@ -2,45 +2,19 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import MISSING, Field, asdict, is_dataclass
-from typing import Iterable, Union, cast
+from typing import Union, cast
 
-from kayaku.pretty import Prettifier
-
-from .backend.types import (
-    WSC,
-    Array,
-    BlockStyleComment,
-    Comment,
-    JObject,
-    JString,
-    JType,
-    convert,
-)
+from .backend.types import Array, BlockStyleComment, JObject, JString, JType, convert
 from .schema_gen import ConfigModel
 
 
-def _parse_wsc(wsc_iter: Iterable[WSC]) -> set[str]:
-    return {
-        "\n".join(Prettifier.clean_comment(inspect.cleandoc(wsc).splitlines()))
-        for wsc in wsc_iter
-        if isinstance(wsc, Comment)
-    }
-
-
-def _collect_comments(obj: JType) -> set[str]:
-    res: set[str] = set()
-    res.update(_parse_wsc(obj.json_before))
-    res.update(_parse_wsc(obj.json_after))
+def remove_generated_comment(obj: JType):
+    obj.json_before = [wsc for wsc in obj.json_before if "@type" not in wsc]
+    obj.json_after = [wsc for wsc in obj.json_after if "@type" not in wsc]
     if isinstance(obj, (JObject, Array)):
-        res.update(_parse_wsc(obj.json_container_tail))
-        if isinstance(obj, JObject):
-            for k, v in obj.items():
-                res.update(_collect_comments(k) if isinstance(k, JType) else set())
-                res.update(_collect_comments(v) if isinstance(v, JType) else set())
-        else:
-            for v in obj:
-                res.update(_collect_comments(v) if isinstance(v, JType) else set())
-    return res
+        obj.json_container_tail = [
+            wsc for wsc in obj.json_container_tail if "@type" not in wsc
+        ]
 
 
 def gen_field_doc(field: Field, doc: str | None) -> str:
@@ -57,16 +31,16 @@ def format_exist(
             field, doc = fields.pop(k)
             k: JString = convert(k)
             container[k] = convert(v)
-            exclude = _collect_comments(k)
-            if (d := gen_field_doc(field, doc)) not in exclude:
-                k.json_before.append(BlockStyleComment(d))
+            remove_generated_comment(k)
+            remove_generated_comment(v)
+            k.json_before.append(BlockStyleComment(gen_field_doc(field, doc)))
 
 
 def format_not_exist(
     fields: dict[str, tuple[Field, str | None]],
     container: JObject,
 ) -> None:
-    exclude = _collect_comments(container)
+    remove_generated_comment(container)
     for k, (field, doc) in fields.items():
         k = convert(k)
         if field.default_factory is not MISSING:
@@ -80,8 +54,7 @@ def format_not_exist(
         else:
             v = default
         container[k] = convert(v)
-        if (d := gen_field_doc(field, doc)) not in exclude:
-            k.json_before.append(BlockStyleComment(d))
+        k.json_before.append(BlockStyleComment(gen_field_doc(field, doc)))
 
 
 def format_with_model(container: JObject, model: type[ConfigModel]) -> None:

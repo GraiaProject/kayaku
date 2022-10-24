@@ -69,12 +69,6 @@ def test_format_model():
             *
             * @type: List[str]
             */
-            /*
-            * B
-            * Annotation: B
-            *
-            * @type: Dict[str, str]
-            */
             "c": ["123"],
             /*
             * Any E
@@ -82,6 +76,12 @@ def test_format_model():
             * @type: Any
             */
             "e": null,
+            /*
+            * B
+            * Annotation: B
+            *
+            * @type: Dict[str, str]
+            */
             "b": {"a": "c"},
             /*@type: format.test_format_model.<locals>.D*/
             "default": {"a": 5}

@@ -3,7 +3,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from datetime import date, datetime, time, tzinfo
 from enum import Enum
-from typing import Union
+from typing import Any, Dict, Union
 
 from kayaku.backend import dumps, loads
 from kayaku.backend.types import JObject, JWrapper
@@ -95,6 +95,19 @@ class Sub:
     a: int
 
 
+@dataclass
+class Obj2:
+    a: E
+    b: date
+    c: time
+    d: datetime
+    e: re.Pattern
+    f: Union[list, bool]
+    g: Union[int, None]
+    h: Union[int, str]
+    i: Dict[str, Union[None, Any]]
+
+
 def test_extra_load():
     dt_now = datetime.now()
 
@@ -107,8 +120,9 @@ def test_extra_load():
         "f": JWrapper(True),
         "g": JWrapper(None),
         "h": "abc",
+        "i": {"a": "a", "b": None},
     }
-    target_obj = Obj(
+    target_obj = Obj2(
         E.A,
         dt_now.date(),
         dt_now.time(),
@@ -117,8 +131,13 @@ def test_extra_load():
         True,
         None,
         "abc",
+        {"a": "a", "b": None},
     )
-    assert from_dict(Obj, obj) == target_obj
+    o: Obj2 = from_dict(Obj2, obj)
+    assert o == target_obj
+    assert o.f is True
+    assert o.g is None
+    assert o.i["b"] is None
 
 
 def test_update_with_dc():
