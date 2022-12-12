@@ -862,3 +862,26 @@ def test_dc_gen_with_cls_doc():
         "description": "Represents a store.",
         "type": "object",
     }
+
+
+def test_dc_union_type():
+    import sys
+
+    if sys.version_info <= (3, 10):
+        pytest.skip("types.UnionType is not available under Python 3.10.")
+
+    @dataclasses.dataclass
+    class DcOptional:
+        """Represents an optional item."""
+
+        item: int | None = None
+
+    assert get_schema(DcOptional) == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "description": "Represents an optional item.",
+        "properties": {
+            "item": {"anyOf": [{"type": "integer"}, {"type": "null"}], "default": None}
+        },
+        "title": "DcOptional",
+        "type": "object",
+    }

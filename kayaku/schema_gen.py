@@ -35,6 +35,8 @@ import enum
 import inspect
 import numbers
 import re
+import sys
+import types
 import typing as t
 from abc import ABC
 
@@ -115,7 +117,6 @@ class ContainerSchema(Schema):
     unique_items: t.Optional[bool] = None
 
 
-# TODO: TypedDict
 class ConfigModel(ABC):
     __dataclass_fields__: t.ClassVar[t.Dict[str, dataclasses.Field]]
 
@@ -131,6 +132,9 @@ def is_sub_type(sub: t.Any, parent: t.Any) -> bool:
         and issubclass(sub_origin, parent)
         or sub_origin == parent
     )
+
+
+Unions = (t.Union,) if sys.version_info < (3, 10) else (t.Union, types.UnionType)
 
 
 class SchemaGenerator:
@@ -167,8 +171,7 @@ class SchemaGenerator:
             if self.seen_root:
                 return {"$ref": "#"}
             self.seen_root = True
-            schema = self.create_dc_schema(dc)
-            return schema
+            return self.create_dc_schema(dc)
         else:
             name = self.retrieve_name(dc)
             if name not in self.defs:
@@ -219,28 +222,10 @@ class SchemaGenerator:
             schema.pop("required")
         return schema
 
-    def get_field_schema(self, typ: t.Type, default: t.Any):
-        if dataclasses.is_dataclass(typ):
-            return self.get_dc_schema(typ)
-        elif t_e.get_origin(typ) == t.Union:
-            return self.get_union_schema(typ, default)
-        elif t_e.get_origin(typ) == t.Literal:
-            return self.get_literal_schema(typ, default)
-        elif t_e.get_origin(typ) == t_e.Annotated:
-            return self.get_annotated_schema(typ, default)
-        elif typ == t.Any:
+    def get_simple_schema(self, typ: t.Type, default: t.Any):
+        if typ in (t.Any, t_e.Any):
             return self.get_any_schema(default)
-        elif t_e.is_typeddict(typ):
-            return self.get_typed_dict_schema(typ)
-        elif is_sub_type(typ, dict):
-            return self.get_dict_schema(typ)
-        elif is_sub_type(typ, list):
-            return self.get_list_schema(typ)
-        elif is_sub_type(typ, tuple):
-            return self.get_tuple_schema(typ, default)
-        elif is_sub_type(typ, set):
-            return self.get_set_schema(typ)
-        elif typ is None or typ == type(None):
+        elif typ in (None, type(None)):
             return self.get_none_schema(default)
         elif is_sub_type(typ, str):
             return self.get_str_schema(default)
@@ -258,6 +243,32 @@ class SchemaGenerator:
             return self.get_date_schema()
         elif is_sub_type(typ, re.Pattern):
             return self.get_regex_schema()
+
+    def get_complex_schema(self, typ: t.Type, default: t.Any):
+        if dataclasses.is_dataclass(typ):
+            return self.get_dc_schema(typ)
+        elif t_e.get_origin(typ) in Unions:
+            return self.get_union_schema(typ, default)
+        elif t_e.get_origin(typ) == t.Literal:
+            return self.get_literal_schema(typ, default)
+        elif t_e.get_origin(typ) == t_e.Annotated:
+            return self.get_annotated_schema(typ, default)
+        elif t_e.is_typeddict(typ):
+            return self.get_typed_dict_schema(typ)
+        elif is_sub_type(typ, dict):
+            return self.get_dict_schema(typ)
+        elif is_sub_type(typ, list):
+            return self.get_list_schema(typ)
+        elif is_sub_type(typ, tuple):
+            return self.get_tuple_schema(typ, default)
+        elif is_sub_type(typ, set):
+            return self.get_set_schema(typ)
+
+    def get_field_schema(self, typ: t.Type, default: t.Any):
+        if (schema := self.get_simple_schema(typ, default)) is not None:
+            return schema
+        if (schema := self.get_complex_schema(typ, default)) is not None:
+            return schema
         raise NotImplementedError(f"field type '{typ}' not implemented")
 
     def get_any_schema(self, default: t.Any):
