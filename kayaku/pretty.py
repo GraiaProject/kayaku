@@ -73,13 +73,14 @@ class Prettifier:
     @staticmethod
     def clean_comment(lines: list[str]) -> list[str]:
         res = []
-        for i in lines:
-            if i[:2] == "* ":
-                res.append(i[2:])
-            elif i == "*":
-                res.append("")
-            else:
-                res.append(i)
+        if lines[-1].strip() == "":
+            del lines[-1]
+        for i in map(str.lstrip, lines):
+            if i.startswith("*"):
+                i = i[1:]
+            if i.startswith(" "):
+                i = i[1:]
+            res.append(i)
         return res
 
     def gen_comment_block(self, comment: str) -> BlockStyleComment:
@@ -90,9 +91,9 @@ class Prettifier:
         indentation: str = " " * self.layer * self.indent
         return BlockStyleComment(
             "".join(
-                f"\n{indentation}* {i}" if i else f"\n{indentation}*" for i in lines
+                f"\n{indentation} * {i}" if i else f"\n{indentation} *" for i in lines
             )
-            + f"\n{indentation}"
+            + f"\n{indentation} "
         )
 
     def format_container(self, new_obj: T_Container, obj: T_Container) -> T_Container:

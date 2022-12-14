@@ -209,20 +209,20 @@ def basic_test():
         == f"""\
 {{
     /*
-    * Organizations that you want to subscribe (tracks *all* repo events)
-    *
-    * @type: List[str]
-    */
+     * Organizations that you want to subscribe (tracks *all* repo events)
+     *
+     * @type: List[str]
+     */
     "organizations": [
         "GraiaProject",
         "GraiaCommunity"
     ],
     /*
-    * Repositories that you want to subscribe
-    * Please avoid duplicating the organizations that you've subscribed.
-    *
-    * @type: List[str]
-    */
+     * Repositories that you want to subscribe
+     * Please avoid duplicating the organizations that you've subscribed.
+     *
+     * @type: List[str]
+     */
     "repos": ["GreyElaina/richuru"],
     "$schema": "{sub_pth.with_name("subscription.schema.json").resolve().as_uri()}"
 }}
@@ -234,10 +234,10 @@ def basic_test():
         == f"""\
 {{
     /*
-    * Account, int for UserID, str for username.
-    *
-    * @type: Union[int, str]
-    */
+     * Account, int for UserID, str for username.
+     *
+     * @type: Union[int, str]
+     */
     "account": "admin@graia",
     /*@type: str*/
     "password": "login_weak",

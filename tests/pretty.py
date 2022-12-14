@@ -104,7 +104,7 @@ def test_pretty_comment():
 
 
             @type: int
-            */
+             */
             "account": 0
         },
         "broadcast":{
@@ -112,12 +112,14 @@ def test_pretty_comment():
             "dct":[
                 {"3": 5} // what a mess
             ] /*input*/,
-            /*
-            * Test annotating
-            * What about double line
-            *
-            * @type: Optional[P]
-            */
+        /*
+                 * Test annotating
+                 * contain '*' and '/'
+             * shorter ident
+                         * longer ident
+                 *
+                 * @type: Optional[P]
+                                */
             "p": null
         }, // bro
     }
@@ -139,11 +141,11 @@ def test_pretty_comment():
             ],
             "ariadne": {
                 /*
-                * More annotations
-                *
-                *
-                * @type: int
-                */
+                 * More annotations
+                 *
+                 *
+                 * @type: int
+                 */
                 "account": 0
             },
             "broadcast": {
@@ -153,11 +155,13 @@ def test_pretty_comment():
                     {"3": 5} // what a mess
                 ],
                 /*
-                * Test annotating
-                * What about double line
-                *
-                * @type: Optional[P]
-                */
+                 * Test annotating
+                 * contain '*' and '/'
+                 * shorter ident
+                 * longer ident
+                 *
+                 * @type: Optional[P]
+                 */
                 "p": null
             } // bro
         }
