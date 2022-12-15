@@ -72,16 +72,9 @@ class Prettifier:
 
     @staticmethod
     def clean_comment(lines: list[str]) -> list[str]:
-        res = []
         if lines[-1].strip() == "":
             del lines[-1]
-        for i in map(str.lstrip, lines):
-            if i.startswith("*"):
-                i = i[1:]
-            if i.startswith(" "):
-                i = i[1:]
-            res.append(i)
-        return res
+        return [i.removeprefix("*").removeprefix(" ") for i in map(str.lstrip, lines)]
 
     def gen_comment_block(self, comment: str) -> BlockStyleComment:
         lines: list[str] = inspect.cleandoc(comment).splitlines()
