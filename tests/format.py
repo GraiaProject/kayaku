@@ -35,19 +35,19 @@ def test_format_model():
         """
 {
     /*
-    * Annotation: A
-    *
-    * @type: int
-    */
+     * Annotation: A
+     *
+     * @type: int
+     */
     a: 3,
     d: 5,
     c: ["123"]
     /*
-    * B
-    * Annotation: B
-    *
-    * @type: Dict[str, str]
-    */
+     * B
+     * Annotation: B
+     *
+     * @type: Dict[str, str]
+     */
 }
 """
     )
@@ -58,30 +58,30 @@ def test_format_model():
         """\
         {
             /*
-            * Annotation: A
-            *
-            * @type: int
-            */
+             * Annotation: A
+             *
+             * @type: int
+             */
             "a": 3,
             "d": 5,
             /*
-            * Fantasy C
-            *
-            * @type: List[str]
-            */
+             * Fantasy C
+             *
+             * @type: List[str]
+             */
             "c": ["123"],
             /*
-            * Any E
-            *
-            * @type: Any
-            */
+             * Any E
+             *
+             * @type: Any
+             */
             "e": null,
             /*
-            * B
-            * Annotation: B
-            *
-            * @type: Dict[str, str]
-            */
+             * B
+             * Annotation: B
+             *
+             * @type: Dict[str, str]
+             */
             "b": {"a": "c"},
             /*@type: format.test_format_model.<locals>.D*/
             "default": {"a": 5}
