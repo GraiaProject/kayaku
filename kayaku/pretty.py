@@ -35,9 +35,7 @@ IDENTIFIER_PATTERN = regex.compile(
 
 
 class Prettifier:
-    """JSON Container Prettifier.
-    Comments inside a K-V pair is shifted to the key's before.
-    """
+    """容器格式化工具"""
 
     def __init__(
         self,
@@ -47,6 +45,17 @@ class Prettifier:
         string_quote: Quote | None = Quote.DOUBLE,
         unfold_single: bool = False,
     ):
+        """
+
+        Args:
+            indent (int, optional): 缩进数量. Defaults to 4.
+            trail_comma (bool, optional): 是否要为容器增加尾随逗号. Defaults to False.
+            key_quote (Quote | None | Constant[False], optional): 键使用的引号风格,
+                None 为保留, Quote.DOUBLE 为双引号, Quote.SINGLE 为单引号, False 为尽可能去除引号.
+                Defaults to Quote.DOUBLE.
+            string_quote (Quote | None, optional): 值中字符串使用的引号风格, 解释同上. Defaults to Quote.DOUBLE.
+            unfold_single (bool, optional): 单个元素的容器是否展开. Defaults to False.
+        """
         self.indent: int = indent
         self.trail_comma: bool = trail_comma
         self.key_quote: Quote | Constant[False] | None = key_quote

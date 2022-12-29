@@ -26,3 +26,8 @@
 ::: kayaku.create
 
 ::: kayaku.save
+
+::: kayaku.pretty.Prettifier
+    options:
+        merge_init_into_class: true
+        members: false
