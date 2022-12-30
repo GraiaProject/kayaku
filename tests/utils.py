@@ -8,7 +8,7 @@ from typing import Any, Dict, Union
 from kayaku.backend import dumps, loads
 from kayaku.backend.types import JObject, JWrapper
 from kayaku.pretty import Prettifier
-from kayaku.utils import from_dict, update
+from kayaku.utils import from_dict, update, copying_field
 
 update_input = """\
 {
@@ -179,3 +179,11 @@ def test_update_with_dc():
     ).items():
         assert o[k] == v
         assert o[k].__class__ == v.__class__
+
+
+def test_copying_field():
+    @dataclass
+    class DC:
+        ls: list = copying_field([])
+
+    assert DC() == DC([])

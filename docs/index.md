@@ -18,6 +18,14 @@
         show_root_heading: false
         show_root_toc_entry: false
 
+::: kayaku.default
+
+::: kayaku.utils.copying_field_stub
+    options:
+        show_root_heading: false
+        show_root_toc_entry: false
+        show_source: false
+
 
 ::: kayaku.bootstrap
 

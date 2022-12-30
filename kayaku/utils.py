@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import enum
 import re
-from dataclasses import fields
+from dataclasses import fields, field
 from datetime import date, datetime, time
-from typing import Any, Sequence, TypeVar, Union
+from typing import Any, Mapping, Sequence, TypeVar, Union, TYPE_CHECKING
 
 import typing_extensions
 from dacite.config import Config
@@ -150,3 +150,43 @@ def from_dict(model: type[T], data: dict[str, Any]) -> T:
             cast=[enum.Enum],
         ),
     )
+
+
+if TYPE_CHECKING:
+
+    def copying_field_stub(
+        default: T,
+        *,
+        init: bool = True,
+        repr: bool = True,
+        hash: bool | None = None,
+        compare: bool = True,
+        metadata: Mapping[Any, Any] | None = None,
+        kw_only: bool = False,
+    ) -> T:
+        """自动 deepcopy 默认值的 `dataclass.field`.
+
+        Args:
+            default (T): The default value for this field, which will be deepcopied on each call.
+            init (bool, optional): If true (the default), this field is included in `__init__()`.
+            repr (bool, optional): If true (the default), this field is included in `repr()`.
+            hash (bool | None, optional): If true, this field is included in the generated `__hash__()` method. If None (the default), use the value of compare.
+            compare (bool, optional): If true (the default), this field is included in comparison methods.
+            metadata (Mapping[Any, Any] | None, optional): A mapping which is stored but not otherwise examined by dataclass.
+            kw_only (bool, optional): If true, this field will be marked as keyword-only. (3.10+)
+
+        Returns:
+            T: The field object, faked to be the same type of `default` in typ checkers' eyes.
+        """
+        ...
+
+else:
+
+    def copying_field_impl(default, **kwargs):
+        from copy import deepcopy
+
+        default_value = deepcopy(default)
+        return field(default_factory=lambda: deepcopy(default_value), **kwargs)
+
+
+copying_field = copying_field_stub if TYPE_CHECKING else copying_field_impl

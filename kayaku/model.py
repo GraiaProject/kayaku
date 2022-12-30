@@ -37,15 +37,15 @@ def config_stub(
     Args:
         domain (str): *唯一的* 用于标识类的结构位置与类别的字符串，用 `.` 分开。
 
-        init (bool, optional): If true (the default), a __init__() method will be generated.
-        repr (bool, optional): If true (the default), a __repr__() method will be generated.
-        eq (bool, optional): If true (the default), an __eq__() method will be generated.
-        order (bool, optional): If specified, __lt__(), __le__(), __gt__(), and __ge__() methods will be generated.
-        unsafe_hash (bool, optional): Force dataclass() to create a __hash__() method. Otherwise a __hash__() method is generated according to how eq and frozen are set.
+        init (bool, optional): If true (the default), a `__init__()` method will be generated.
+        repr (bool, optional): If true (the default), a `__repr__()` method will be generated.
+        eq (bool, optional): If true (the default), an `__eq__()` method will be generated.
+        order (bool, optional): If specified, `__lt__()`, `__le__()`, `__gt__()`, and `__ge__()` methods will be generated.
+        unsafe_hash (bool, optional): Force dataclass() to create a `__hash__()` method. Otherwise a `__hash__()` method is generated according to how eq and frozen are set.
         frozen (bool, optional): If specified, assigning to fields will generate an exception. This emulates read-only frozen instances.
-        match_args (bool, optional): If true (the default is True), the __match_args__ tuple will be created from the list of parameters to the generated __init__().
+        match_args (bool, optional): If true (the default is True), the `__match_args__` tuple will be created from the list of parameters to the generated `__init__()`.
         kw_only (bool, optional): If specified, then all fields will be marked as keyword-only.
-        slots (bool, optional): If specified, __slots__ attribute will be generated and new class will be returned instead of the original one.
+        slots (bool, optional): If specified, `__slots__` attribute will be generated and new class will be returned instead of the original one.
     Returns:
         类的装饰器。
     """
