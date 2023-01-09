@@ -117,6 +117,7 @@ Ident = Identifier
 class Quote(Enum):
     """Known quotes formats"""
 
+    value: str
     SINGLE = "'"
     DOUBLE = '"'
 

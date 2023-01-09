@@ -18,6 +18,8 @@ ESCAPES = {
     "\u2029": r"\\u2029",
 }
 
+QUOTE_ESCAPE = {"'": {"'": r"\'"}, '"': {'"': r"\""}}
+
 JSONEncoderMethod = Callable[[Any, Any], None]
 """A JSON encoder type method"""
 
@@ -129,9 +131,8 @@ class Encoder:
 
     @with_style
     def encode_string(self, obj: str) -> None:
-        if isinstance(obj, JString):
-            self.fp.write(f"{obj.quote.value}{escape_string(obj)}{obj.quote.value}")
-        elif isinstance(obj, Identifier):
+        if isinstance(obj, Identifier):
             self.fp.write(obj)
         else:
-            self.fp.write(f'"{escape_string(obj)}"')
+            quote = obj.quote.value if isinstance(obj, JString) else '"'
+            self.fp.write(f"{quote}{escape_string(obj, **QUOTE_ESCAPE[quote])}{quote}")

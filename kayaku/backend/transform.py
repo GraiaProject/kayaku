@@ -40,7 +40,7 @@ class Transformer(BaseTransformer):
 
     @v_args(inline=True)
     def SINGLE_QUOTE_CHARS(self, token: Token) -> tuple[str, list[int]]:
-        return ast.literal_eval(f'"{token.value}"'), [
+        return ast.literal_eval(f"'{token.value}'"), [
             m.start() for m in re.finditer("\\\n", token.value)
         ]
 

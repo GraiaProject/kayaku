@@ -116,3 +116,15 @@ def test_wsc():
     assert encode_wsc(WhiteSpace("     \n")) == "     \n"
     with pytest.raises(NotImplementedError):
         encode_wsc(Comment("abstract"))
+
+
+def test_horrible_quote():
+    target_single = r"""{"a": '"\'"\'"\'"\''}"""
+    target_double = r"""{"a": "\"'\"'\"'\"'"}"""
+    assert backend.loads(target_double) == {"a": """"'"'"'"'"""}
+    assert backend.loads(target_single) == {"a": """"'"'"'"'"""}
+    assert (
+        backend.dumps({"a": """"'"'"'"'"""}) == '{"a":"\\"\'\\"\'\\"\'\\"\'"}'
+    )  # default: condense
+    assert backend.dumps(backend.loads(target_single)) == target_single
+    assert backend.dumps(backend.loads(target_double)) == target_double
