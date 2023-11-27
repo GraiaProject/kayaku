@@ -4,6 +4,8 @@ import enum
 import re
 from dataclasses import fields, field
 from datetime import date, datetime, time
+import sys
+import types
 from typing import Any, Mapping, Sequence, TypeVar, Union, TYPE_CHECKING
 
 import typing_extensions
@@ -17,6 +19,8 @@ from .schema_gen import ConfigModel
 DomainType: TypeAlias = "tuple[str, ...]"
 
 T = TypeVar("T", bound=ConfigModel)
+
+Unions = {Union,} if sys.version_info < (3, 10) else {Union, types.UnionType}
 
 
 def copy_meta(src: Any, dst: JType):
@@ -123,7 +127,7 @@ class _KayakuDaciteTypeHook(dict):
         return super().__contains__(o)
 
     def __getitem__(self, k: Any) -> Any:
-        if typing_extensions.get_origin(k) == Union:
+        if typing_extensions.get_origin(k) in Unions:
 
             def applier(arg):
                 for func in [
