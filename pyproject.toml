@@ -13,13 +13,13 @@ dependencies = [
     "typing-extensions<5.0.0,>=4.0.0",
 ]
 name = "kayaku"
-version = "0.5.2"
+version = "0.5.3"
 description = "An powerful and flexible configuration solution."
 readme = "README.md"
 classifiers = [
-"Typing :: Typed",
-"Development Status :: 4 - Beta",
-"Operating System :: OS Independent"
+    "Typing :: Typed",
+    "Development Status :: 4 - Beta",
+    "Operating System :: OS Independent"
 ]
 
 [project.urls]
