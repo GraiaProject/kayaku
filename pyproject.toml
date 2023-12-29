@@ -7,13 +7,13 @@ authors = [
 license = {text = "MIT"}
 requires-python = ">=3.8,<4.0"
 dependencies = [
-    "loguru>=0.6.0,<0.7.0",
+    "loguru>=0.7.2",
     "dacite>=1.6.0,<2.0",
     "lark[regex]>=1.1,<2.0",
     "typing-extensions<5.0.0,>=4.0.0",
 ]
 name = "kayaku"
-version = "0.5.3"
+version = "0.5.4"
 description = "An powerful and flexible configuration solution."
 readme = "README.md"
 classifiers = [
@@ -22,9 +22,6 @@ classifiers = [
     "Operating System :: OS Independent"
 ]
 
-[project.urls]
-
-[project.optional-dependencies]
 [tool.pdm]
 includes = ["kayaku"]
 [tool.pdm.scripts]
