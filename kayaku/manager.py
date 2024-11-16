@@ -115,7 +115,7 @@ class _KayakuCore:
         self.bootstrap(paths)
 
     def bootstrap_file(self, path: Path, store: _FileEntry) -> None:
-        path.with_suffix(".schema.json").write_text(
+        touch_path(path.with_suffix(".schema.json")).write_text(
             dumps(store.get_schema()), encoding="utf-8"
         )
         exceptions = []
@@ -283,6 +283,6 @@ class Kayaku:
         cls_entry.path.write_text(
             dumps(self._core.prettifier.prettify(document), endline=True), "utf-8"
         )
-        cls_entry.path.with_suffix(".schema.json").write_text(
-            dumps(self._core.files[cls_entry.path].get_schema()), "utf-8"
-        )
+        touch_path(cls_entry.path.with_suffix(".schema.json")).with_suffix(
+            ".schema.json"
+        ).write_text(dumps(self._core.files[cls_entry.path].get_schema()), "utf-8")
