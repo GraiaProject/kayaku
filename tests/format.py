@@ -7,7 +7,7 @@ import pytest
 from kayaku import backend as json5
 from kayaku.doc_parse import store_field_description
 from kayaku.format import format_with_model
-from kayaku.pretty import Prettifier
+from kayaku.pretty import Prettifier, Quote
 
 
 def test_format_model():
@@ -54,7 +54,9 @@ def test_format_model():
 
     format_with_model(data, Model)
 
-    assert json5.dumps(Prettifier().prettify(data)) == inspect.cleandoc(
+    assert json5.dumps(
+        Prettifier(key_quote=Quote.DOUBLE).prettify(data)
+    ) == inspect.cleandoc(
         """\
         {
             /*

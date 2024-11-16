@@ -1,10 +1,10 @@
 """Prettify a JSON Container.
 """
+
 from __future__ import annotations
 
 import inspect
-from typing import Literal as Constant
-from typing import TypeVar
+from typing import Literal, TypeVar
 
 import regex
 
@@ -40,8 +40,8 @@ class Prettifier:
     def __init__(
         self,
         indent: int = 4,
-        trail_comma: bool = False,
-        key_quote: Quote | None | Constant[False] = Quote.DOUBLE,
+        trail_comma: bool = True,
+        key_quote: Quote | None | Literal[False] = False,
         string_quote: Quote | None = Quote.DOUBLE,
         unfold_single: bool = False,
     ):
@@ -49,16 +49,16 @@ class Prettifier:
 
         Args:
             indent (int, optional): 缩进数量. Defaults to 4.
-            trail_comma (bool, optional): 是否要为容器增加尾随逗号. Defaults to False.
-            key_quote (Quote | None | Constant[False], optional): 键使用的引号风格,
+            trail_comma (bool, optional): 是否要为容器增加尾随逗号. Defaults to True.
+            key_quote (Quote | None | Literal[False], optional): 键使用的引号风格,
                 None 为保留, Quote.DOUBLE 为双引号, Quote.SINGLE 为单引号, False 为尽可能去除引号.
-                Defaults to Quote.DOUBLE.
+                Defaults to False.
             string_quote (Quote | None, optional): 值中字符串使用的引号风格, 解释同上. Defaults to Quote.DOUBLE.
             unfold_single (bool, optional): 单个元素的容器是否展开. Defaults to False.
         """
         self.indent: int = indent
         self.trail_comma: bool = trail_comma
-        self.key_quote: Quote | Constant[False] | None = key_quote
+        self.key_quote: Quote | Literal[False] | None = key_quote
         self.string_quote: Quote | None = string_quote
         self.unfold_single: bool = unfold_single
         self.layer: int = 0
@@ -118,9 +118,11 @@ class Prettifier:
             wsc_list.extend(
                 [
                     WhiteSpace(f"\n{indent}"),
-                    self.gen_comment_block(comment)
-                    if isinstance(comment, BlockStyleComment)
-                    else comment,
+                    (
+                        self.gen_comment_block(comment)
+                        if isinstance(comment, BlockStyleComment)
+                        else comment
+                    ),
                 ]
             )
         if wsc_list and not require_newline:

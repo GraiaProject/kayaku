@@ -39,8 +39,8 @@ import typing_extensions as t_e
 from jsonschema.validators import Draft202012Validator
 
 from kayaku.schema_gen import (
-    ConfigModel,
     ContainerSchema,
+    DataClass,
     NumberSchema,
     Schema,
     SchemaGenerator,
@@ -48,7 +48,7 @@ from kayaku.schema_gen import (
 )
 
 
-def get_schema(obj: type[ConfigModel]):
+def get_schema(obj: type[DataClass]):
     class NameOnlyGen(SchemaGenerator):
         def retrieve_name(self, typ: t.Type) -> str:
             return typ.__name__
@@ -554,8 +554,7 @@ def test_config_model_abc():
     class C:
         a: int
 
-    assert isinstance(C(5), ConfigModel)
-    assert issubclass(C, ConfigModel)
+    assert isinstance(C(5), DataClass)
 
 
 def test_get_schema_annotation():

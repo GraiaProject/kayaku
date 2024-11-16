@@ -1,4 +1,7 @@
 import inspect
+from typing import Literal
+
+from helper import prettifier
 
 from kayaku import backend as json5
 from kayaku.backend.types import Quote, convert
@@ -10,7 +13,7 @@ def test_pretty_single_wrapped():
     expected = ["""{"a": "b"}""", """{"a": 1}""", """[1]""", """["acc"]""", "[]", "{}"]
 
     for o, e in zip(origins, expected):
-        assert json5.dumps(Prettifier().prettify(o)) == e
+        assert json5.dumps(prettifier().prettify(o)) == e
 
 
 def test_pretty_single_unwrapped():
@@ -23,7 +26,7 @@ def test_pretty_single_unwrapped():
         """
     )
     assert (
-        json5.dumps(Prettifier(unfold_single=True).prettify(origin))
+        json5.dumps(prettifier(unfold_single=True).prettify(origin))
         == expected_unwrapped
     )
     origin = convert({"a": 1})
@@ -35,7 +38,7 @@ def test_pretty_single_unwrapped():
         """
     )
     assert (
-        json5.dumps(Prettifier(unfold_single=True).prettify(origin))
+        json5.dumps(prettifier(unfold_single=True).prettify(origin))
         == expected_unwrapped
     )
 
@@ -58,29 +61,29 @@ def test_pretty_complex():
         }
         """
     )
-    assert json5.dumps(Prettifier().prettify(convert(obj))) == result
+    assert json5.dumps(prettifier().prettify(convert(obj))) == result
 
 
 def test_pretty_flavor():
     input_str = "{a: 6}"
     assert (
-        json5.dumps(Prettifier(key_quote=None).prettify(json5.loads(input_str)))
+        json5.dumps(prettifier(key_quote=None).prettify(json5.loads(input_str)))
         == "{a: 6}"
     )
     assert (
-        json5.dumps(Prettifier(key_quote=Quote.DOUBLE).prettify(json5.loads(input_str)))
+        json5.dumps(prettifier(key_quote=Quote.DOUBLE).prettify(json5.loads(input_str)))
         == '{"a": 6}'
     )
     assert (
-        json5.dumps(Prettifier(key_quote=Quote.SINGLE).prettify(json5.loads(input_str)))
+        json5.dumps(prettifier(key_quote=Quote.SINGLE).prettify(json5.loads(input_str)))
         == "{'a': 6}"
     )
     assert (
-        json5.dumps(Prettifier(key_quote=False).prettify(json5.loads("{'a': 6}")))
+        json5.dumps(prettifier(key_quote=False).prettify(json5.loads("{'a': 6}")))
         == "{a: 6}"
     )
     assert (
-        json5.dumps(Prettifier(key_quote=False).prettify(json5.loads("{'.': 6}")))
+        json5.dumps(prettifier(key_quote=False).prettify(json5.loads("{'.': 6}")))
         == '{".": 6}'
     )
 
@@ -168,4 +171,4 @@ def test_pretty_comment():
         """
     )
 
-    assert json5.dumps(Prettifier().prettify(json5.loads(input_str))) == output
+    assert json5.dumps(prettifier().prettify(json5.loads(input_str))) == output

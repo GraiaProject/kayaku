@@ -5,10 +5,11 @@ from datetime import date, datetime, time, tzinfo
 from enum import Enum
 from typing import Any, Dict, Union
 
+from helper import prettifier
+
 from kayaku.backend import dumps, loads
 from kayaku.backend.types import JObject, JWrapper
-from kayaku.pretty import Prettifier
-from kayaku.utils import from_dict, update, copying_field
+from kayaku.utils import copying_field, from_dict, update
 
 update_input = """\
 {
@@ -69,7 +70,7 @@ def test_json_update():
     obj["p"].extend([1, 2, {"a": "b"}])
     obj["q"] = Sub(1)
     update(o_obj, obj)
-    assert dumps(Prettifier().prettify(o_obj)) == update_output
+    assert dumps(prettifier().prettify(o_obj)) == update_output
 
 
 class E(Enum):
@@ -103,9 +104,9 @@ class Obj2:
     d: datetime
     e: re.Pattern
     f: Union[list, bool]
-    g: Union[int, None]
+    g: int | None
     h: Union[int, str]
-    i: Dict[str, Union[None, Any]]
+    i: Dict[str, None | str]
 
 
 def test_extra_load():

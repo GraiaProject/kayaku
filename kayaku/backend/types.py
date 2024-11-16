@@ -11,7 +11,7 @@ import math
 import re
 from datetime import date, datetime, time
 from enum import Enum
-from typing import Any, Generic, List, Tuple, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Generic, List, Tuple, TypeVar, overload
 
 from typing_extensions import Self, TypeAlias
 
@@ -117,7 +117,6 @@ Ident = Identifier
 class Quote(Enum):
     """Known quotes formats"""
 
-    value: str
     SINGLE = "'"
     DOUBLE = '"'
 
@@ -162,23 +161,45 @@ class JNumber(JType):
         self.origin = origin
         return super().__post_init__()
 
-    def __round_dump__(self) -> str:
-        ...
+    def __round_dump__(self) -> str: ...
 
 
-class Integer(JNumber, int):
+class Float(float, JNumber):
     """
-    A JSON integer compatible with Python's `int`.
+    A JSON float compatible with Python's `float`.
     """
-
-    def __str__(self) -> str:
-        return int.__repr__(self)
 
     def __round_dump__(self) -> str:
-        if self.origin and int(self.origin) == self:
-            return self.origin
+        if self.origin:
+            constructed = float(self.origin)
+            if (math.isnan(constructed) and math.isnan(self)) or self == constructed:
+                return self.origin
 
-        return int.__repr__(self)
+        return float.__repr__(self).replace("nan", "NaN").replace("inf", "Infinity")
+
+
+if TYPE_CHECKING:
+
+    class Integer(int, Float):
+        """
+        A JSON integer compatible with Python's `int`.
+        """
+
+else:
+
+    class Integer(int, JNumber):
+        """
+        A JSON integer compatible with Python's `int`.
+        """
+
+        def __str__(self) -> str:
+            return int.__repr__(self)
+
+        def __round_dump__(self) -> str:
+            if self.origin and int(self.origin) == self:
+                return self.origin
+
+            return int.__repr__(self)
 
 
 class HexInteger(Integer):
@@ -194,20 +215,6 @@ class HexInteger(Integer):
             return self.origin
 
         return hex(self)
-
-
-class Float(JNumber, float):
-    """
-    A JSON float compatible with Python's `float`.
-    """
-
-    def __round_dump__(self) -> str:
-        if self.origin:
-            constructed = float(self.origin)
-            if (math.isnan(constructed) and math.isnan(self)) or self == constructed:
-                return self.origin
-
-        return float.__repr__(self).replace("nan", "NaN").replace("inf", "Infinity")
 
 
 AnyNumber: TypeAlias = "Integer | Float"
@@ -235,7 +242,22 @@ class JWrapper(JType, Generic[T]):
         return self.value.__hash__()
 
 
-Value: TypeAlias = "JObject | Array | JString | JNumber | JWrapper | bool | None"
+class BoolWrapper(Integer, JWrapper[bool]):
+    """
+    A JSON boolean compatible with Python's `bool`.
+    """
+
+    def __init__(self, value):
+        super().__init__(value)
+
+    def __str__(self) -> str:
+        return str(self.value)
+
+    def __round_dump__(self) -> str:
+        return str(self.value).lower()
+
+
+Value: TypeAlias = "JObject | Array | JString | JNumber | JWrapper | None"
 """
 A type alias matching the JSON Value.
 """
@@ -250,43 +272,39 @@ JSONType_T = TypeVar("JSONType_T", bound=JType)
 
 
 @overload
-def convert(obj: dict) -> JObject:
-    ...
+def convert(obj: dict) -> JObject: ...
 
 
 @overload
-def convert(obj: "list | tuple") -> Array:
-    ...
+def convert(obj: list | tuple) -> Array: ...
 
 
 @overload
-def convert(obj: str) -> JString:
-    ...
+def convert(obj: str) -> JString: ...
 
 
 @overload
-def convert(obj: int) -> Integer:
-    ...
+def convert(obj: bool) -> BoolWrapper: ...
 
 
 @overload
-def convert(obj: float) -> Float:
-    ...
+def convert(obj: int) -> Integer: ...
 
 
 @overload
-def convert(obj: "bool") -> JWrapper[bool]:
-    ...
+def convert(obj: float) -> Float: ...
 
 
 @overload
-def convert(obj: None) -> JWrapper[None]:
-    ...
+def convert(obj: None) -> JWrapper[None]: ...
 
 
 @overload
-def convert(obj: JSONType_T) -> JSONType_T:
-    ...
+def convert(obj: JSONType_T) -> JSONType_T: ...
+
+
+@overload
+def convert(obj: Any) -> JType: ...
 
 
 def convert(obj: Any) -> JType:

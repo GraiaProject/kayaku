@@ -2,25 +2,21 @@ from __future__ import annotations
 
 import enum
 import re
-from dataclasses import fields, field
-from datetime import date, datetime, time
-import sys
 import types
-from typing import Any, Mapping, Sequence, TypeVar, Union, TYPE_CHECKING
+from dataclasses import field, fields
+from datetime import date, datetime, time
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Sequence, TypeVar, Union
 
 import typing_extensions
 from dacite.config import Config
 from dacite.core import from_dict as _from_dict
-from typing_extensions import TypeAlias
 
 from .backend.types import Array, JContainer, JObject, JType, JWrapper, convert
-from .schema_gen import ConfigModel
+from .schema_gen import DataClass
 
-DomainType: TypeAlias = "tuple[str, ...]"
-
-T = TypeVar("T", bound=ConfigModel)
-
-Unions = {Union,} if sys.version_info < (3, 10) else {Union, types.UnionType}
+DC_T = TypeVar("DC_T", bound=DataClass)
+T = TypeVar("T")
 
 
 def copy_meta(src: Any, dst: JType):
@@ -35,7 +31,7 @@ def copy_meta(src: Any, dst: JType):
 def _update_array(container: Array, data: list):
     for i in range(len(container)):
         val = container[i]
-        if isinstance(val, (ConfigModel, dict)):
+        if isinstance(val, (DataClass, dict)):
             new_container = JObject()
             update(new_container, val, delete=True)
             val = new_container
@@ -58,8 +54,8 @@ def _update_array(container: Array, data: list):
         container.json_container_trailing_comma = True
 
 
-def update(container: JObject, data: ConfigModel | dict, delete: bool = False):
-    if isinstance(data, ConfigModel):
+def update(container: JObject, data: DataClass | dict, delete: bool = False):
+    if isinstance(data, DataClass):
         k_v_pairs = {f.name: getattr(data, f.name) for f in fields(data)}
     else:
         k_v_pairs = data
@@ -68,7 +64,7 @@ def update(container: JObject, data: ConfigModel | dict, delete: bool = False):
         k = convert(k)
         to_be_popped.discard(k)
         origin_v = container.get(k, None)
-        if isinstance(v, (ConfigModel, dict)):
+        if isinstance(v, (DataClass, dict)):
             new_v = container.setdefault(k, JObject())
             update(new_v, v, delete=True)
             v = new_v
@@ -88,6 +84,9 @@ def update(container: JObject, data: ConfigModel | dict, delete: bool = False):
         container.pop(k, None)
 
 
+Unions = {Union, typing_extensions.Union, types.UnionType}
+
+
 class _KayakuDaciteTypeHook(dict):
     def __init__(self):
         super().__init__(
@@ -98,6 +97,7 @@ class _KayakuDaciteTypeHook(dict):
                 re.Pattern: self.hook_re_pattern,
                 bool: self.hook_bool,
                 type(None): self.hook_none,
+                None: self.hook_none,
             }
         )
 
@@ -120,7 +120,7 @@ class _KayakuDaciteTypeHook(dict):
         return v.value if isinstance(v, JWrapper) else v
 
     def __contains__(self, o: object) -> bool:
-        if typing_extensions.get_origin(o) == Union:
+        if typing_extensions.get_origin(o) in Unions:
             return any(
                 dict.__contains__(self, arg) for arg in typing_extensions.get_args(o)
             )
@@ -145,7 +145,7 @@ class _KayakuDaciteTypeHook(dict):
 _TYPE_HOOK = _KayakuDaciteTypeHook()
 
 
-def from_dict(model: type[T], data: dict[str, Any]) -> T:
+def from_dict(model: type[DC_T], data: dict[str, Any]) -> DC_T:
     return _from_dict(
         model,
         data,
@@ -156,35 +156,7 @@ def from_dict(model: type[T], data: dict[str, Any]) -> T:
     )
 
 
-if TYPE_CHECKING:
-
-    def copying_field_stub(
-        default: T,
-        *,
-        init: bool = True,
-        repr: bool = True,
-        hash: bool | None = None,
-        compare: bool = True,
-        metadata: Mapping[Any, Any] | None = None,
-        kw_only: bool = False,
-    ) -> T:
-        """自动 deepcopy 默认值的 `dataclass.field`.
-
-        Args:
-            default (T): The default value for this field, which will be deepcopied on each call.
-            init (bool, optional): If true (the default), this field is included in `__init__()`.
-            repr (bool, optional): If true (the default), this field is included in `repr()`.
-            hash (bool | None, optional): If true, this field is included in the generated `__hash__()` method. If None (the default), use the value of compare.
-            compare (bool, optional): If true (the default), this field is included in comparison methods.
-            metadata (Mapping[Any, Any] | None, optional): A mapping which is stored but not otherwise examined by dataclass.
-            kw_only (bool, optional): If true, this field will be marked as keyword-only. (3.10+)
-
-        Returns:
-            T: The field object, faked to be the same type of `default` in typ checkers' eyes.
-        """
-        ...
-
-else:
+if not TYPE_CHECKING:
 
     def copying_field_impl(default, **kwargs):
         from copy import deepcopy
@@ -193,4 +165,15 @@ else:
         return field(default_factory=lambda: deepcopy(default_value), **kwargs)
 
 
-copying_field = copying_field_stub if TYPE_CHECKING else copying_field_impl
+copying_field = field if TYPE_CHECKING else copying_field_impl
+
+
+def to_path(path: str, suffix: str) -> Path:
+    return Path(path).expanduser().resolve().with_suffix(suffix)
+
+
+def touch_path(pth: Path) -> Path:
+    # create parent dir if not exist
+    pth.parent.mkdir(parents=True, exist_ok=True)
+    pth.touch(exist_ok=True)
+    return pth

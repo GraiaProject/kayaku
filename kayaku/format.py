@@ -5,7 +5,7 @@ from dataclasses import MISSING, Field, asdict, is_dataclass
 from typing import Union, cast
 
 from .backend.types import Array, BlockStyleComment, JObject, JString, JType, convert
-from .schema_gen import ConfigModel
+from .schema_gen import DataClass
 
 
 def remove_generated_comment(obj: JType):
@@ -48,6 +48,7 @@ def format_not_exist(
         else:
             default = field.default
         if is_dataclass(default):
+            assert isinstance(default, DataClass)
             v = asdict(default)
         elif default is MISSING:
             v = None
@@ -57,7 +58,7 @@ def format_not_exist(
         k.json_before.append(BlockStyleComment(gen_field_doc(field, doc)))
 
 
-def format_with_model(container: JObject, model: type[ConfigModel]) -> None:
+def format_with_model(container: JObject, model: type[DataClass]) -> None:
     if not isinstance(container, JObject):
         raise TypeError(f"{container} is not a json object.")
 
