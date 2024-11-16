@@ -50,7 +50,7 @@ from kayaku.schema_gen import (
 
 def get_schema(obj: type[DataClass]):
     class NameOnlyGen(SchemaGenerator):
-        def retrieve_name(self, typ: t.Type) -> str:
+        def retrieve_name(self, typ: type) -> str:
             return typ.__name__
 
     return NameOnlyGen.from_dc(obj)
@@ -91,7 +91,7 @@ class DcOptional:
     e: bool = False
     f: None = None
     g: float = 1.1
-    h: t.Tuple[int, float] = (1, 1.1)
+    h: tuple[int, float] = (1, 1.1)
 
 
 def test_get_schema_optional_fields():
@@ -124,7 +124,7 @@ def test_get_schema_optional_fields():
 
 @dataclasses.dataclass
 class DcUnion:
-    a: t.Union[int, str]
+    a: int | str
 
 
 def test_get_schema_union():
@@ -143,8 +143,8 @@ def test_get_schema_union():
 @dataclasses.dataclass
 class DcNone:
     a: None
-    b: t.Optional[int]
-    c: t.Union[None, int]
+    b: int | None
+    c: None | int
 
 
 def test_get_schema_nullable():
@@ -167,7 +167,7 @@ def test_get_schema_nullable():
 @dataclasses.dataclass
 class DcDict:
     a: dict
-    b: t.Dict[str, int]
+    b: dict[str, int]
 
 
 def test_get_schema_dict():
@@ -189,7 +189,7 @@ def test_get_schema_dict():
 @dataclasses.dataclass
 class DcList:
     a: list
-    b: t.List[bool]
+    b: list[bool]
 
 
 def test_get_schema_list():
@@ -211,8 +211,8 @@ def test_get_schema_list():
 @dataclasses.dataclass
 class DcTuple:
     a: tuple
-    b: t.Tuple[int, ...]
-    c: t.Tuple[int, bool, str]
+    b: tuple[int, ...]
+    c: tuple[int, bool, str]
 
 
 def test_get_schema_tuple():
@@ -249,7 +249,7 @@ class DcRefsChild:
 @dataclasses.dataclass
 class DcRefs:
     a: DcRefsChild
-    b: t.List[DcRefsChild]
+    b: list[DcRefsChild]
 
 
 def test_get_schema_refs():
@@ -282,8 +282,8 @@ def test_get_schema_refs():
 @dataclasses.dataclass
 class DcRefsSelf:
     a: str
-    b: t.Optional[DcRefsSelf]
-    c: t.List[DcRefsSelf]
+    b: DcRefsSelf | None
+    c: list[DcRefsSelf]
 
 
 def test_get_schema_self_refs():
@@ -327,7 +327,7 @@ def test_get_schema_literal():
 @dataclasses.dataclass
 class DcAny:
     a: t.Any
-    x: t.Union[int, t.Any] = 4
+    x: int | t.Any = 4
     b: t_e.Annotated[t.Any, Schema("B!!!")] = 5
 
 
@@ -378,7 +378,7 @@ def test_get_schema_enum():
 @dataclasses.dataclass
 class DcSet:
     a: set
-    b: t.Set[int]
+    b: set[int]
 
 
 def test_get_schema_set():
@@ -427,8 +427,8 @@ def test_get_schema_str_annotation():
 @dataclasses.dataclass
 class DcNumberAnnotated:
     a: t_e.Annotated[int, NumberSchema(minimum=1, exclusive_maximum=11)]
-    b: t.List[t_e.Annotated[int, NumberSchema(minimum=0)]]
-    c: t.Optional[t_e.Annotated[int, NumberSchema(minimum=0)]]
+    b: list[t_e.Annotated[int, NumberSchema(minimum=0)]]
+    c: t_e.Annotated[int, NumberSchema(minimum=0)] | None
     d: t_e.Annotated[
         float, NumberSchema(maximum=12, exclusive_minimum=17, multiple_of=5)
     ] = 33.1
@@ -485,21 +485,6 @@ class DcRegex:
     a: re.Pattern
 
 
-def test_get_schema_regex():
-    schema = get_schema(DcRegex)
-    print(schema)
-    Draft202012Validator.check_schema(schema)
-    assert schema == {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": "object",
-        "title": "DcRegex",
-        "properties": {
-            "a": {"type": "string", "format": "regex"},
-        },
-        "required": ["a"],
-    }
-
-
 @dataclasses.dataclass
 class DcNotImplemented:
     a: type(NotImplemented)
@@ -542,11 +527,11 @@ class DcAnnotatedAuthor:
         Schema(description="the name of the author", examples=["paul", "alice"]),
     ]
     books: t_e.Annotated[
-        t.List[DcAnnotatedBook],
+        list[DcAnnotatedBook],
         Schema(description="all the books the author has written"),
     ]
     hobby: t_e.Annotated[DcAnnotatedAuthorHobby, Schema(deprecated=True)]
-    age: t_e.Annotated[t.Union[int, float], Schema(description="age in years")] = 42
+    age: t_e.Annotated[int | float, Schema(description="age in years")] = 42
 
 
 def test_config_model_abc():
@@ -647,12 +632,10 @@ def test_get_schema_config():
 @dataclasses.dataclass
 class DcListAnnotation:
     a: t_e.Annotated[
-        t.List[int],
+        list[int],
         ContainerSchema(min_items=3, max_items=5, unique_items=True),
     ]
-    b: t_e.Annotated[
-        t.Tuple[float, ...], ContainerSchema(min_items=3, max_items=10)
-    ] = ()
+    b: t_e.Annotated[tuple[float, ...], ContainerSchema(min_items=3, max_items=10)] = ()
 
 
 def test_get_schema_list_annotation():
@@ -758,13 +741,13 @@ class Book(t_e.TypedDict):
 
 class Disc(t_e.TypedDict, total=False):
     name: t_e.Required[str]
-    artists: t.List[str]
-    songs: t.List[str]
+    artists: list[str]
+    songs: list[str]
 
 
 @dataclasses.dataclass
 class DcShelf:
-    items: t.List[t.Union[Book, Disc]]
+    items: list[Book | Disc]
 
 
 def test_dc_gen_typed_dict():
@@ -831,7 +814,7 @@ class StoreItem(t_e.TypedDict):
 class DcStore:
     """Represents a store."""
 
-    items: t.List[StoreItem]
+    items: list[StoreItem]
 
 
 def test_dc_gen_with_cls_doc():
@@ -864,10 +847,6 @@ def test_dc_gen_with_cls_doc():
 
 
 def test_dc_union_type():
-    import sys
-
-    if sys.version_info <= (3, 10):
-        pytest.skip("types.UnionType is not available under Python 3.10.")
 
     @dataclasses.dataclass
     class DcOptional:

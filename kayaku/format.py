@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import MISSING, Field, asdict, is_dataclass
-from typing import Union, cast
+from typing import cast
 
 from .backend.types import Array, BlockStyleComment, JObject, JString, JType, convert
 from .schema_gen import DataClass
@@ -11,7 +11,7 @@ from .schema_gen import DataClass
 def remove_generated_comment(obj: JType):
     obj.json_before = [wsc for wsc in obj.json_before if "@type" not in wsc]
     obj.json_after = [wsc for wsc in obj.json_after if "@type" not in wsc]
-    if isinstance(obj, (JObject, Array)):
+    if isinstance(obj, JObject | Array):
         obj.json_container_tail = [
             wsc for wsc in obj.json_container_tail if "@type" not in wsc
         ]
@@ -63,7 +63,7 @@ def format_with_model(container: JObject, model: type[DataClass]) -> None:
         raise TypeError(f"{container} is not a json object.")
 
     fields = {
-        k: (f, cast(Union[str, None], f.metadata.get("description")))
+        k: (f, cast(str | None, f.metadata.get("description")))
         for k, f in model.__dataclass_fields__.items()
     }
     format_exist(fields, container)

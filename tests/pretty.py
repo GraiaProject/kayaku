@@ -1,18 +1,16 @@
 import inspect
-from typing import Literal
 
 from helper import prettifier
 
 from kayaku import backend as json5
 from kayaku.backend.types import Quote, convert
-from kayaku.pretty import Prettifier
 
 
 def test_pretty_single_wrapped():
     origins = [convert(i) for i in [{"a": "b"}, {"a": 1}, [1], ["acc"], [], {}]]
     expected = ["""{"a": "b"}""", """{"a": 1}""", """[1]""", """["acc"]""", "[]", "{}"]
 
-    for o, e in zip(origins, expected):
+    for o, e in zip(origins, expected, strict=False):
         assert json5.dumps(prettifier().prettify(o)) == e
 
 

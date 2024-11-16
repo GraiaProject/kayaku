@@ -108,9 +108,7 @@ class Transformer(BaseTransformer):
         return o
 
     def array(self, children: list) -> Any:
-        a = Array(
-            (cast(Value, value) for value in children if isinstance(value, JType))
-        )
+        a = Array(cast(Value, value) for value in children if isinstance(value, JType))
         self._set_trail(a, children)
         return a
 

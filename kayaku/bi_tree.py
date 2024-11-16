@@ -51,9 +51,12 @@ class Prefix:
     def lookup(
         self, frags: Sequence[str], index: int = 0
     ) -> tuple[tuple[SourceSpec, PathSpec], DestWithMount] | None:
-        if index < len(frags) and (nxt_nd := self.nxt.get(frags[index], None)):
-            if lookup_res := nxt_nd.lookup(frags, index + 1):
-                return lookup_res
+        if (
+            index < len(frags)
+            and (nxt_nd := self.nxt.get(frags[index], None))
+            and (lookup_res := nxt_nd.lookup(frags, index + 1))
+        ):
+            return lookup_res
         if self.suffix:
             suffix_ind, spec = self.suffix.lookup(reversed(frags[index:]))
             if spec:

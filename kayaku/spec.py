@@ -3,7 +3,6 @@ from __future__ import annotations
 import enum
 import re
 from dataclasses import dataclass
-from pathlib import Path
 from typing import TypedDict, cast
 
 _LIG = r"[A-Za-z0-9_-]"
@@ -103,9 +102,11 @@ class DestWithMount:
 def parse_path(spec: str) -> PathSpec:
     replacer = {"{*}": PathFill.SINGLE, "{}": PathFill.SINGLE, "{**}": PathFill.EXTEND}
     location, section = spec.rsplit("::", 1) if "::" in spec else (spec, "")
-    path_parts: list[str | PathFill] = [replacer.get(l, l) for l in location.split("/")]
+    path_parts: list[str | PathFill] = [
+        replacer.get(loc, loc) for loc in location.split("/")
+    ]
     section_parts: list[str | PathFill] = (
-        [replacer.get(l, l) for l in section.split(".")] if section else []
+        [replacer.get(sect, sect) for sect in section.split(".")] if section else []
     )
     if path_parts.count(PathFill.EXTEND) + section_parts.count(PathFill.EXTEND) > 1:
         raise ValueError(f"""Found more than one "extend" part ({{**}}) in {spec}""")

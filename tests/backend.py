@@ -48,7 +48,6 @@ def",
 
 
 def test_backend_round_trip():
-    import kayaku.backend.env
     from kayaku import backend
 
     in_io = io.StringIO(test_input)
@@ -79,8 +78,8 @@ def test_round_trip_raw():
 def test_load_repr():
     assert str(backend.loads("123")) == "123"
     assert str(backend.loads("0x123")) == "0x123"
-    assert backend.loads("null") == None
-    assert backend.loads("true") == True
+    assert backend.loads("null") == None  # noqa: E711
+    assert backend.loads("true")
     assert {None: 5}[backend.loads("null")]
 
 

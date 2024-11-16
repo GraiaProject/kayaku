@@ -1,9 +1,8 @@
 import re
 from copy import deepcopy
 from dataclasses import dataclass
-from datetime import date, datetime, time, tzinfo
+from datetime import date, datetime, time
 from enum import Enum
-from typing import Any, Dict, Union
 
 from helper import prettifier
 
@@ -86,9 +85,9 @@ class Obj:
     c: time
     d: datetime
     e: re.Pattern
-    f: Union[list, bool]
-    g: Union[int, None]
-    h: Union[int, str]
+    f: list | bool
+    g: int | None
+    h: int | str
 
 
 @dataclass
@@ -103,10 +102,10 @@ class Obj2:
     c: time
     d: datetime
     e: re.Pattern
-    f: Union[list, bool]
+    f: list | bool
     g: int | None
-    h: Union[int, str]
-    i: Dict[str, None | str]
+    h: int | str
+    i: dict[str, None | str]
 
 
 def test_extra_load():
@@ -142,7 +141,7 @@ def test_extra_load():
 
 
 def test_update_with_dc():
-    from kayaku.backend.types import Array, Integer, JObject, JString, JWrapper
+    from kayaku.backend.types import Array, Integer, JString, JWrapper
 
     dt_now = datetime.now()
     target_obj = Obj(

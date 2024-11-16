@@ -1,8 +1,8 @@
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from dataclasses import fields as get_fields
 from pathlib import Path
-from typing import Any, Callable, Literal, TypeAlias, TypeVar, overload
+from typing import Any, Literal, TypeAlias, TypeVar, overload
 
 from .backend import dumps, loads
 from .backend.types import JObject, Quote
@@ -77,8 +77,8 @@ class _KayakuCore:
         file_store = self.files.setdefault(
             path, _FileEntry(self.get_schema_generator(None))
         )
-        for field in get_fields(cls):
-            sub_dest: MountIdent = mount + (field.name,)
+        for dc_field in get_fields(cls):
+            sub_dest: MountIdent = mount + (dc_field.name,)
             if sub_dest in file_store.mount_record:
                 raise NameError(
                     f"{path.with_suffix('').as_posix()}::{'.'.join(sub_dest)} is occupied!"

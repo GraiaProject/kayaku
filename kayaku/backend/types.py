@@ -11,9 +11,7 @@ import math
 import re
 from datetime import date, datetime, time
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Generic, List, Tuple, TypeVar, overload
-
-from typing_extensions import Self, TypeAlias
+from typing import TYPE_CHECKING, Any, Generic, Self, TypeAlias, TypeVar, overload
 
 
 class JType:
@@ -32,7 +30,7 @@ class JType:
         return self
 
     def __repr__(self) -> str:
-        if attrs := getattr(self, "__dict__"):
+        if attrs := self.__dict__:
             kwargs = ", ".join(f"{k}={v}" for k, v in attrs.items())
             return f"{self.__class__.__name__}({super().__repr__()}, {kwargs})"
         return f"{self.__class__.__name__}({super().__repr__()})"
@@ -97,7 +95,7 @@ class JObject(JContainer, dict):
 T = TypeVar("T")
 
 
-class Array(JContainer, List[T]):
+class Array(JContainer, list[T]):
     """A JSON Array with style preservation"""
 
 
@@ -105,7 +103,7 @@ class Identifier(JType, str):
     "A quoteless string without special characters"
 
     def __repr__(self) -> str:
-        if attrs := getattr(self, "__dict__"):
+        if attrs := self.__dict__:
             kwargs = ", ".join(f"{k}={v}" for k, v in attrs.items())
             return f"{self.__class__.__name__}({super().__repr__()}, {kwargs})"
         return f"{self.__class__.__name__}({super().__repr__()})"
@@ -141,7 +139,7 @@ class JString(JType, str):
         return self
 
     def __repr__(self) -> str:
-        if attrs := getattr(self, "__dict__"):
+        if attrs := self.__dict__:
             kwargs = ", ".join(f"{k}={v}" for k, v in attrs.items())
             return f"{self.__class__.__name__}({self.quote.value}{self}{self.quote.value}, {kwargs})"
         return f"{self.__class__.__name__}({super().__repr__()})"
@@ -262,7 +260,7 @@ Value: TypeAlias = "JObject | Array | JString | JNumber | JWrapper | None"
 A type alias matching the JSON Value.
 """
 
-Member = Tuple[Key, Value]
+Member = tuple[Key, Value]
 """
 A Key-Value pair in an [Object][kayaku.backend.types.Object]
 """
@@ -310,11 +308,11 @@ def convert(obj: Any) -> JType: ...
 def convert(obj: Any) -> JType:
     if isinstance(obj, JType):
         return obj
-    if isinstance(obj, (list, tuple)):
+    if isinstance(obj, list | tuple):
         o = Array(obj)
     elif (
-        isinstance(obj, (bool, date, time, datetime, re.Pattern, enum.Enum))
-        or obj == None
+        isinstance(obj, bool | date | time | datetime | re.Pattern | enum.Enum)
+        or obj is None
     ):
         o = JWrapper(obj)
     elif isinstance(obj, dict):

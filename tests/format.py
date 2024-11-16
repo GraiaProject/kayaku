@@ -1,6 +1,6 @@
 import inspect
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any
 
 import pytest
 
@@ -17,13 +17,13 @@ def test_format_model():
 
     @dataclass
     class Model:
-        c: List[str]
+        c: list[str]
         "Fantasy C"
         e: Any
         "Any E"
         a: int = 4
         """Annotation: A"""
-        b: Dict[str, str] = field(default_factory=lambda: {"a": "c"})
+        b: dict[str, str] = field(default_factory=lambda: {"a": "c"})
         """B
         Annotation: B
         """
@@ -46,7 +46,7 @@ def test_format_model():
      * B
      * Annotation: B
      *
-     * @type: Dict[str, str]
+     * @type: dict[str, str]
      */
 }
 """
@@ -69,7 +69,7 @@ def test_format_model():
             /*
              * Fantasy C
              *
-             * @type: List[str]
+             * @type: list[str]
              */
             "c": ["123"],
             /*
@@ -82,7 +82,7 @@ def test_format_model():
              * B
              * Annotation: B
              *
-             * @type: Dict[str, str]
+             * @type: dict[str, str]
              */
             "b": {"a": "c"},
             /*@type: format.test_format_model.<locals>.D*/

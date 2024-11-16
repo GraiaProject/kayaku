@@ -157,7 +157,7 @@ class Prettifier:
             k, v = self.convert_key(k), convert(v)
             sub_comments = self.collect_comments(k) + self.collect_comments(v)
             if not (
-                sub_comments or (v and isinstance(v, (list, tuple, dict)))
+                sub_comments or (v and isinstance(v, list | tuple | dict))
             ):  # is simple type
                 k.__json_clear__()
                 v.__json_clear__()
@@ -177,7 +177,7 @@ class Prettifier:
             newline = self.require_newline(k.json_before)
             k.__json_clear__()
             v.__json_clear__()
-            if isinstance(v, (Array, JObject)):
+            if isinstance(v, Array | JObject):
                 v = self.prettify(v)
             v.json_before.append(WhiteSpace(" "))
             new_obj[k] = v
@@ -194,7 +194,7 @@ class Prettifier:
             v: JType = convert(arr[0])
             sub_comments = self.collect_comments(v)
             if not (
-                sub_comments or (v and isinstance(v, (list, tuple, dict)))
+                sub_comments or (v and isinstance(v, list | tuple | dict))
             ):  # is simple type
                 v.__json_clear__()
                 return Array((v,)).__post_init__()
@@ -210,7 +210,7 @@ class Prettifier:
             sub_comments = self.collect_comments(v)
             newline = self.require_newline(v.json_before)
             v.__json_clear__()
-            if isinstance(v, (Array, JObject)):
+            if isinstance(v, Array | JObject):
                 v = self.prettify(v)
             v.json_before = self.format_wsc(sub_comments, newline)
             new_arr.append(v)
